@@ -1,0 +1,26 @@
+---
+# Setup the ntp-Daemon, compliant to samba-wiki for signing timestamps by the DC.
+# Variable:
+# sambadc_timezone shall contain the timezone
+# sambadc_timeservers shall contain a list of maps where key is "name" and the value
+# the time-server-name.
+- name: "[NTPD] - Set timezone"
+  ansible.builtin.command: timedatectl set-timezone "{{ sambadc_timezone }}"
+  changed_when: true
+
+- name: "[NTPD] - Generate ntpd configuration for dc"
+  ansible.builtin.template:
+    src: templates/ntpd.conf.j2
+    dest: /etc/ntpd.conf
+    owner: "root"
+    group: "ntp"
+    mode: "0440"
+    force: true
+
+- name: "[NTPD] Set permission for directory /var/lib/samba/ntp_sign"
+  ansible.builtin.file:
+    path: "/var/lib/samba/ntp_sign"
+    state: directory
+    owner: "root"
+    group: "ntp"
+    mode: "0750"

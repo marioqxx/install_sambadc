@@ -1,0 +1,12 @@
+[libdefaults]
+    dns_lookup_realm = false
+    dns_lookup_kdc = true
+    default_realm = {{ sambadc_realm | upper }}
+
+[realms]
+{{ sambadc_realm | upper }} = {
+    default_domain = {{ sambadc_realm | lower }}
+}
+
+[domain_realm]
+    {{ sambadc_realm.split(".")[0] | lower }} = {{ sambadc_realm | upper }}

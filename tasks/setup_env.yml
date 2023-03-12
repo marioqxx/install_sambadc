@@ -1,0 +1,126 @@
+---
+# Prepare the system by installing required packages and make certain system-wide settings.
+- name: "[SETUP-ENV] - Add backports repository"
+  ansible.builtin.apt_repository:
+    repo: 'deb http://deb.debian.org/debian bullseye-backports main'
+    state: present
+    update_cache: true
+  when: sambadc_use_backport
+
+# Update packages cache and install required packages.
+- name: "[SETUP-ENV] - Update packages cache."
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 86400
+  failed_when: false
+
+- name: "[SETUP-ENV] - Install samba packages."
+  ansible.builtin.apt:
+    pkg:
+      - krb5-config
+      - krb5-user
+      - libnss-winbind
+      - libpam-winbind
+      - winbind
+      - samba
+      - smbclient
+      - ldb-tools
+      - samba-common
+      - ntp
+      - acl
+      - net-tools
+      - ldap-utils
+      # - python3-cryptography
+
+- name: "[SETUP-ENV] - Install bind packages."
+  ansible.builtin.apt:
+    pkg:
+      - bind9
+      - dnsutils
+  when: sambadc_dns in [ "BIND9_FLATFILE", "BIND9_DLZ" ]
+
+- name: "[SETUP-ENV] - Obtain list of installed packages."
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: "[SETUP-ENV] - Obtain installed Samba-Version. Needed for some bugfixes."
+  ansible.builtin.command: samba -V
+  register: sambadc_version
+  changed_when: false
+
+- name: "[SETUP-ENV] - Update libraries."
+  ansible.builtin.command: ldconfig
+  changed_when: true
+
+# Read the various directories Samba uses.
+- name: "[SETUP-ENV] - Obtain samba-files and/or directories to delete."
+  ansible.builtin.command: smbd -b
+  register: df_cmd
+  tags:
+    - cleanup
+  changed_when: false
+
+- name: "[SETUP-ENV] - Create Variables and set to associated directory."
+  ansible.builtin.set_fact:
+    "{{ item }}": "{{ df_cmd.stdout_lines | select('match', '.*' + item + '.*') | join(' ') | split(':') | last | trim }}"
+  tags:
+    - cleanup
+  loop:
+    - SBINDIR
+    - BINDIR
+    - CONFIGFILE
+    - LOGFILEBASE
+    - LMHOSTSFILE
+    - LIBDIR
+    - DATADIR
+    - SAMBA_DATADIR
+    - MODULESDIR
+    - SHLIBEXT
+    - LOCKDIR
+    - STATEDIR
+    - CACHEDIR
+    - PIDDIR
+    - SMB_PASSWD_FILE
+    - PRIVATE_DIR
+    - BINDDNS_DIR
+
+# Directories returned form call smbd -b. Double-check presence, probably not needed.
+- name: "[SETUP-ENV] - Check samba returned required directories."
+  ansible.builtin.assert:
+    that:
+      - BINDDNS_DIR is defined
+      - PRIVATE_DIR is defined
+      - CONFIGFILE is defined
+      - STATEDIR is defined
+
+# Early binding to IPv6 during DHCP-address assignment, which may not be complete
+# at startup when "samba-ad-dc"-service starts.
+- name: "[SETUP-ENV] - Allow early bind to IPv6 interface."
+  ansible.posix.sysctl:
+    name: net.ipv6.ip_nonlocal_bind
+    value: "1"
+    state: present
+    sysctl_set: true
+    reload: true
+
+# Set limits.
+# ulimit -n 65536 or unlimited
+# https://serverfault.com/questions/325608/samba-stuck-at-maximum-of-1024-open-files
+# https://www.vivaolinux.com.br/topico/Debian/erro-rlimit_max-(16384)-Samba-PDC
+# https://superuser.com/questions/740000/modify-and-apply-limits-conf-without-reboot
+- name: "[SETUP-ENV] - Setup pam-limits, include pam_limits.so library in pam configuration."
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/common-session
+    line: 'session required pam_limits.so'
+
+- name: "[SETUP-ENV] - Setup pam-limits, in /etc/security/limits.conf."
+  community.general.pam_limits:
+    domain: "{{ item.user }}"
+    limit_type: "{{ item.type }}"
+    limit_item: nofile
+    value: 65536
+  loop:
+    - { user: "root", type: "soft" }
+    - { user: "root", type: "hard" }
+    - { user: "*", type: "soft" }
+    - { user: "*", type: "hard" }

@@ -1,0 +1,45 @@
+---
+# Disable any unwanted services and enable the samba-ad-dc.service module
+# Note: Afterwards DNS on the remote-host will no longer work.
+- name: "[SYSTEMD] - Disable smbd nmbd winbind services prior to DC samba installation."
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+    masked: true
+  loop:
+    - smbd
+    - nmbd
+    - winbind
+
+- name: "[SYSTEMD] - Disable systemd-resolved, necessary from Ubuntu 18.04 onwards."
+  ansible.builtin.systemd:
+    name: systemd-resolved
+    state: stopped
+    enabled: false
+    masked: true
+
+- name: "[SYSTEMD] - Disable named/bind9 if installed, because SAMBA-INTERNAL is configured."
+  ansible.builtin.systemd:
+    name: named
+    state: stopped
+    enabled: false
+    masked: true
+  when:
+    - sambadc_dns in [ "SAMBA_INTERNAL" ]
+    - "'bind9' in ansible_facts.packages"
+
+- name: "[SYSTEMD] - Enable named/bind9, because BIND9_{FLATFILE, BLZ} is configured."
+  ansible.builtin.systemd:
+    name: named
+    state: started
+    enabled: true
+    masked: false
+  when: sambadc_dns in [ "BIND9_FLATFILE", "BIND9_DLZ" ]
+
+- name: "[SYSTEMD] - Enable samba-ad-dc service for samba DC installation."
+  ansible.builtin.systemd:
+    name: samba-ad-dc
+    state: stopped
+    enabled: true
+    masked: false

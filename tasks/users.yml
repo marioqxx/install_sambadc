@@ -1,0 +1,65 @@
+---
+# Start creating the users and their membership to groups.
+- name: "[USERS] - Obtaining existing Users."
+  ansible.builtin.command: samba-tool user list
+  register: domain_users
+  changed_when: false
+  tags:
+    - settings
+
+- name: "[USERS] - Create users."
+  ansible.builtin.command: >
+    samba-tool user create "{{ item.username }}" "{{ item.password }}"
+    --given-name="{{ item.given_name | default('\"\"') }}"
+    --surname="{{ item.surname }}"
+    --mail-address="{{ item.email | default('\"\"') }}"
+    --profile-path="{{ item.profile_path | default('\"\"') }}"
+    --home-drive="{{ item.home_drive | default('\"\"') }}"
+    --home-directory="{{ item.home_path | default('\"\"') }}"
+  when:
+    - (item.password is string) and (item.password | length > 0)
+    - (item.surname is string) and (item.surname | length > 0)
+    - item.username not in domain_users.stdout_lines
+  loop: "{{ sambadc_users | default({}) }}"
+  changed_when: true
+  tags:
+    - settings
+
+- name: "[USERS] - Re-Obtaining existing Users."
+  ansible.builtin.command: samba-tool user list
+  register: domain_users
+  changed_when: false
+  tags:
+    - settings
+
+- name: "[USERS] - Re-Obtaining existing Groups."
+  ansible.builtin.command: samba-tool group list
+  register: domain_groups
+  changed_when: false
+  tags:
+    - settings
+
+- name: "[USERS] - Reading existing group memberships."
+  ansible.builtin.command: samba-tool group listmembers "{{ item }}"
+  register: domain_group_membership
+  loop: "{{ sambadc_usergroupmembership | map(attribute='members') | flatten | unique }}"
+  changed_when: false
+  tags:
+    - settings
+
+- name: "[USERS] - Obtaining existing group memberships."
+  ansible.builtin.set_fact:
+    domain_group_memberships: "{{ domain_group_membership.results | items2dict(key_name='item', value_name='stdout_lines') }}"
+  tags:
+    - settings
+
+- name: "[USERS] - Setting up Group-membership for Users."
+  ansible.builtin.command: samba-tool group addmembers "{{ item.1 }}" "{{ item.0.username }}"
+  loop: "{{ sambadc_usergroupmembership | subelements('members') }}"
+  when:
+    - item.0.username in domain_users.stdout_lines
+    - item.0.username not in domain_group_memberships[item.1]
+    - item.1 in domain_groups.stdout_lines
+  changed_when: true
+  tags:
+    - settings

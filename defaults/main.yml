@@ -1,0 +1,29 @@
+# Paremeters concerning the sambapackes to use
+sambadc_use_backport: False
+
+# Core parameters for the domain controller
+sambadc_realm: "ads.orbit"
+sambadc_dns: "SAMBA_INTERNAL"
+sambadc_forwarder: "192.168.1.1"
+sambadc_admin_password: 'PassW0rD'
+
+# sambadc_type: new or join
+sambadc_type: "new"
+
+# The timezone the DC is in.
+sambadc_timezone: "Europe/Vienna"
+sambadc_timeservers:
+  - name: "0.pool.ntp.org"
+  - name: "1.pool.ntp.org"
+  - name: "2.pool.ntp.org"
+
+# Needs to be defined as empty for checks in usage.yml.
+STATEDIR: ""
+
+# Helper setting for interims DNS-resolution needed for packages download.
+# Note: Due to variable-precedence rules has to be set in defaults. Will be changed
+# during play.
+dns_address: "{{ sambadc_forwarder }}"
+sambadc_fqdn: "{{ ansible_hostname }}.{{ sambadc_realm }}"
+#sambadc_ipadress: "{{ ansible_facts.all_ipv4_adresses[0] }}"
+

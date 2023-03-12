@@ -1,0 +1,56 @@
+---
+# Do some checking of the configuration provided to this ansible script before running it.
+- name: "[USAGE] - Check that minimum required variables are defined and their values are correct."
+  ansible.builtin.assert:
+    that:
+      - sambadc_dns is in [ "SAMBA_INTERNAL", "BIND9_DLZ" ]
+      - sambadc_realm is defined
+      - sambadc_forwarder is defined
+      - sambadc_admin_password is defined
+      - sambadc_type | lower is in [ "new", "join" ]
+      - sambadc_timezone is defined
+    msg: "There is an error setting in the minimal configuration parameters."
+
+- name: "[USAGE] - Check interfaces and presence of bind only interfaces config parameter. (1/3)."
+  ansible.builtin.meta: end_play
+  when: ( ansible_facts.interfaces | length < 3 ) and ( "lo" not in ansible_facts.interfaces | lower )
+
+- name: "[USAGE] - Check interfaces and presence of bind only interfaces config parameter. (2/3)."
+  ansible.builtin.meta: end_play
+  when:
+    - ansible_facts.interfaces | length >= 3
+    - sambadc_bind_interfaces is not defined
+
+- name: "[USAGE] - Check interfaces and presence of bind only interfaces config parameter. (3/3)."
+  ansible.builtin.meta: end_play
+  when:
+    - ansible_facts.interfaces | length >= 3
+    - sambadc_bin_interfaces | lower not in ansible_facts.interfaces | lower
+
+- name: "[USAGE] - Check if inventory-hostname and host-hostname match."
+  ansible.builtin.meta: end_play
+  when: inventory_hostname | upper != ansible_hostname | upper
+
+- name: "[USAGE] - Check smb.conf-file with the configured shares included."
+  when: sambadc_shares is defined
+  block:
+    - name: "[USAGE] - Temporarily create smb.conf in /tmp folder with shares included."
+      ansible.builtin.template:
+        src: templates/smb.conf.j2
+        dest: /tmp/smb.conf
+        lstrip_blocks: true
+        owner: root
+        group: root
+        mode: "0644"
+        # validate="testparm -s %s"
+      changed_when: false
+
+    - name: "[USAGE] - Check temporarily created smb.conf with testparm."
+      ansible.builtin.command: testparm -s /tmp/smb.conf
+      changed_when: false
+  always:
+    - name: "[USAGE] - Delete temporarily created smb.conf."
+      ansible.builtin.file:
+        path: /tmp/smb.conf
+        state: absent
+      changed_when: false

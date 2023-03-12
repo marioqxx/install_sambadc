@@ -1,0 +1,24 @@
+---
+# Set the password-restrictions to a low level.
+- name: "[SETTINGS] - Disable password expiration for the Administrator account."
+  ansible.builtin.command: samba-tool user setexpiry Administrator --noexpiry
+  changed_when: true
+
+- name: "[SETTINGS] - Disable password history at the domain level"
+  ansible.builtin.command: samba-tool domain passwordsettings set --"{{ item.setting }}"="{{ item.value }}"
+  loop:
+    - { setting: "complexity", value: "off" }
+    - { setting: "min-pwd-age", value: "0" }
+    - { setting: "max-pwd-age", value: "0" }
+    - { setting: "min-pwd-length", value: "4" }
+    - { setting: "history-length", value: "0" }
+  changed_when: true
+
+# Set the DiskOperatorPrivilege for Administrator
+- name: "[SETTINGS] - Set DiskOperatorPrivilege for Administrator."
+  ansible.builtin.command: >
+    net rpc rights grant "{{ sambadc_realm.split('.')[0] | upper + '\Domain Admins' }}"
+      SeDiskOperatorPrivilege
+      --user "{{ sambadc_realm.split('.')[0] | upper + '\Administrator' }}"
+      --password "{{ sambadc_admin_password }}"
+  changed_when: true

@@ -1,0 +1,41 @@
+#jinja2: trim_blocks:True, lstrip_blocks:True
+# Ansible generated config-file
+[global]
+        dns forwarder = {{ sambadc_forwarder }}
+        netbios name = {{ inventory_hostname | upper }} 
+        realm = {{ sambadc_realm | upper }}
+        server role = active directory domain controller
+        workgroup = {{ sambadc_realm.split('.')[0] | upper }}
+        idmap_ldb:use rfc2307 = yes
+{% if sambadc_bind_interfaces is defined %}
+        bind only interfaces = yes
+        interfaces = {{ sambadc_bind_interfaces }}
+{% endif %}
+{% if sambadc_dns in [ "BIND9", "BIND9_DLZ" ] %}
+        server services = -dns
+{% endif %}
+{% if sambadc_shares is defined %}
+        # For shares on the DC, Windows ACLs are mandatory
+        # https://wiki.samba.org/index.php/Setting_up_a_Share_Using_Windows_ACLs
+        # https://wiki.samba.org/index.php/Setting_up_Samba_as_an_Active_Directory_Domain_Controller#Using_the_Domain_Controller_as_a_File_Server_.28Optional.29
+        vfs objects = btrfs acl_xattr dfs_samba4
+        map acl inherit = yes 
+{% endif %}
+
+[sysvol]
+        path = {{ STATEDIR }}/sysvol
+        read only = No
+
+[netlogon]
+        path = {{ STATEDIR }}/sysvol/{{ sambadc_realm }}/scripts
+        read only = No
+
+{% for share in sambadc_shares %}
+[{{ share["share"] }}]
+{% for key, value in share.items() %}
+    {% if key != 'share' %}
+        {{ key }} = {{ value }}
+    {% endif %}
+  {% endfor %}
+
+{% endfor %}

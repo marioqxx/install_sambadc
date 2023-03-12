@@ -1,0 +1,90 @@
+---
+# After Provisioning, perform checks if the DC is up and running.
+# Perform checks as to DNS resolution.
+- name: "[CHECK] - DNS-Loockup DC-services: ldap, TCP"
+  ansible.builtin.command: testparm -s /etc/samba/smb.conf
+  changed_when: false
+  tags:
+    - check
+
+- name: "[CHECK] - DNS-Loockup DC-services: ldap, TCP"
+  ansible.builtin.command: host -t SRV "_ldap._tcp.{{ sambadc_realm }}"
+  changed_when: false
+  tags:
+    - check
+
+- name: "[CHECK] - DNS-Loockup DC-services: kerberos, UDP"
+  ansible.builtin.command: host -t SRV "_kerberos._udp.{{ sambadc_realm }}"
+  changed_when: false
+  tags:
+    - check
+
+- name: "[CHECK] - DNS-Loockup DC-services: gc, TCP"
+  ansible.builtin.command: host -t SRV "_gc._tcp.{{ sambadc_realm }}"
+  changed_when: false
+  tags:
+    - check
+
+- name: "[CHECK] - DNS-Loockup A-Record of DC, returns IP-Adress."
+  ansible.builtin.command: host -t A "{{ sambadc_fqdn }}"
+  register: df_cmd
+  changed_when: false
+  tags:
+    - check
+
+- name: "[CHECK] - DNS-Reverse-Loockup DC (ipv4 only)."
+  ansible.builtin.command: host "{{ df_cmd.stdout | regex_findall('[0-9]+.[0-9]+.[0-9]+.[0-9]+') | join }}"
+  changed_when: false
+  register: df_cmd
+  ignore_errors: true
+  tags:
+    - check
+
+# Perform checks as to Kerberos.
+- name: "[CHECK] - Check Kerberos authentication."
+  tags:
+    - check
+  block:
+    - name: "[CHECK] - Kerberos Request a ticket."
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo {{ sambadc_admin_password }} | kinit -c /tmp/krb5cc_1000 Administrator@{{ sambadc_realm | upper }}
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+    - name: "[CHECK] - Kerberos check ticket in Cache."
+      ansible.builtin.command: klist -c /tmp/krb5cc_1000
+      failed_when: false
+      changed_when: false
+
+    # Perform connection check
+    # Does not work (yet) due tho this issue: https://groups.google.com/g/linux.debian.bugs.dist/c/aNuQQ77KLzk
+    # - name: "[CHECK] - Connection check via Kerveros authentication."
+    #  ansible.builtin.command: smbclient -L "{{ sambadc_fqdn }}" --use-krb5-ccache=/tmp/krb5cc_1000
+    #  failed_when: false
+    #  changed_when: false
+
+  # Always delete the Kerberos ticket form the Credential-Cache.
+  always:
+    - name: "[CHECK] - Kerberos destroy ticket Cache."
+      ansible.builtin.command: kdestroy -c /tmp/krb5cc_1000
+      changed_when: false
+
+- name: "[CHECK] - Test anonymous connect to DC."
+  ansible.builtin.command: smbclient -L localhost -N
+  changed_when: false
+  tags:
+    - check
+
+- name: "[CHECK] - Test connection via username/password."
+  ansible.builtin.command: smbclient -L "{{ sambadc_fqdn }}" -U Administrator --password="{{ sambadc_admin_password }}"
+  changed_when: false
+  tags:
+    - check
+
+- name: "[CHECK] - Test connection to netlogon via username/password."
+  ansible.builtin.command: smbclient //"{{ sambadc_fqdn }}"/netlogon -c "ls" -U Administrator --password="{{ sambadc_admin_password }}"
+  changed_when: false
+  tags:
+    - check

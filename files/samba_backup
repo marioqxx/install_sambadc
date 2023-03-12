@@ -1,0 +1,91 @@
+#!/bin/bash
+
+WHERE=/backups/samba
+WHEN=`date +%Y-%m-%d-%H%M`	# ISO 8601 standard date.
+DAYS=7
+
+/usr/sbin/service samba-ad-dc stop
+mkdir -p $WHERE/$WHEN
+ 
+/usr/bin/net getdomainsid > ${WHERE}/${WHEN}/domainsid.txt
+
+# Cópia completa de /var/lib/samba por garantia
+tdir="/var/lib/samba"
+cd `dirname $tdir`
+d=`basename $tdir`
+relativedirname=`find . -type d -name "$d" -prune`
+tar -cjf ${WHERE}/${WHEN}/var_lib_samba_RAW.tar.bz2  $relativedirname/* --xattrs --warning=no-file-ignored
+
+# backup da pasta private
+tdir='/var/lib/samba/private'
+cd `dirname $tdir`
+d=`basename $tdir`
+relativedirname=`find . -type d -name "$d" -prune`
+n=`echo $tdir|sed 's|\/|_|g'|sed 's/^_//'`
+find $relativedirname -name "*.ldb.bak" -exec rm {} \;
+for ldb in `find $relativedirname -name "*.ldb"`; do
+  tdbbackup $ldb
+  if [ $? -ne 0 ]; then
+    echo "Error while backuping $ldb"
+    exit 1
+  fi
+done
+find $relativedirname -name "*.tdb.bak" -exec rm {} \;
+for ldb in `find $relativedirname -name "*.tdb"`; do
+  # esse arquivo da problema: netlogon_creds_cli.tdb
+  if [[ $ldb == './private/netlogon_creds_cli.tdb' ]]; then
+    cp ./private/netlogon_creds_cli.tdb ./private/netlogon_creds_cli.tdb.bak
+    continue
+  fi
+  tdbbackup $ldb
+  if [ $? -ne 0 ]; then
+    echo "Error while backuping $ldb"
+    exit 1
+  fi
+done
+tar --exclude="*.ldb" --exclude="*.tdb" -cjf ${WHERE}/${WHEN}/${n}.tar.bz2  $relativedirname --xattrs --warning=no-file-ignored --transform 's/.ldb.bak$/.ldb/' --transform 's/.tdb.bak$/.tdb/'
+
+if [ $? -ne 0 ]; then
+  echo "Error while archiving ${WHERE}/${WHEN}/${n}.tar.bz2 "
+  exit 1
+fi
+find $relativedirname -name "*.ldb.bak" -exec rm {} \;
+find $relativedirname -name "*.tdb.bak" -exec rm {} \;
+
+# bachup da pasta sysvol e etc
+DIRS='/var/lib/samba/sysvol /etc/samba'
+for tdir in $DIRS;
+do
+    cd `dirname $tdir`
+    d=`basename $tdir`
+    relativedirname=`find . -type d -name "$d" -prune`
+    n=`echo $tdir|sed 's|\/|_|g'|sed 's/^_//'`
+    tar cjf ${WHERE}/${WHEN}/${n}.tar.bz2 $relativedirname --xattrs
+    if [ $? -ne 0 ]; then
+      echo "Error while archiving ${WHERE}/${WHEN}/${n}.tar.bz2"
+      exit 1
+    fi
+done
+
+# backup da pasta /var/lib/samba
+tdir="/var/lib/samba"
+cd `dirname $tdir`
+d=`basename $tdir`
+relativedirname=`find . -type d -name "$d" -prune`
+find $relativedirname -name "*.tdb.bak" -exec rm {} \;
+for ldb in `find $relativedirname -name "*.tdb" ! -path ./samba*private/*`; do
+    tdbbackup $ldb
+    if [ $? -ne 0 ]; then
+        echo "Error while backuping $ldb"
+        exit 1
+    fi
+done
+n=`echo $tdir|sed 's|\/|_|g'|sed 's/^_//'`
+tar -cjf ${WHERE}/${WHEN}/${n}.tar.bz2  $relativedirname/*.tdb.bak --xattrs --warning=no-file-ignored --transform 's/.tdb.bak$/.tdb/'
+find "/var/lib/samba" -name "*.tdb.bak" -exec rm {} \;
+
+
+#find $WHERE -name "*tar.bz2" -mtime +$DAYS -exec rm  {} \;
+find $WHERE -type d -mtime +$DAYS -print0 | xargs -0 rm -rf
+
+/usr/sbin/service samba-ad-dc start

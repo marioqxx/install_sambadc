@@ -1,0 +1,162 @@
+---
+# Install packages and provision or join a DC. Setup the NTP-daemon.
+# An existing configuration and database will be deleted and a new configuraiton created.
+#
+# ATTENTION: THIS WILL DELETE YOUR CURRENT CONFIGURED DC IRREVOCABLY.
+- name: "[MAIN] - Sanity check variables given for minimum configuration."
+  ansible.builtin.include_tasks: usage.yml
+
+# Install the packages needed for a samba DC and if configured from additional repository.
+- name: "[MAIN] - Install the required packages and make other required/useful system-settings."
+  ansible.builtin.include_tasks: setup_env.yml
+  tags:
+    - limits
+    - cleanup
+
+- name: "[MAIN] - Cleanup any existing config, DB and log-files of an existing DC"
+  ansible.builtin.include_tasks: cleanup.yml
+  tags:
+    - cleanup
+
+# Remove smbd, nmbd and winbind as well as systemd-resolved from starting and shut those
+# services down. Note that DNS afterwards does not work anymore.
+- name: "[MAIN] - Prepare systemd settings."
+  ansible.builtin.include_tasks: systemd.yml
+
+- name: "[MAIN] - set IP-address for local name resolution - Pre-Provision."
+  ansible.builtin.set_fact:
+    dns_address: "{{ sambadc_forwarder }}"
+
+- name: "{MAIN] - Re-enable (static) DNS-resolution by writing '/etc/resolv.conf'."
+  ansible.builtin.template:
+    src: templates/resolv.conf.j2
+    dest: /etc/resolv.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: "[MAIN] - Provision the new Domain Controller and create new Domain."
+  ansible.builtin.command: >
+    samba-tool domain provision
+      --server-role=dc
+      --dns-backend="{{ sambadc_dns }}"
+      --realm="{{ sambadc_realm | upper }}"
+      --domain="{{ sambadc_realm.split('.')[0] | upper }}"
+      --adminpass='{{ sambadc_admin_password }}'
+      --use-rfc2307
+  when: sambadc_type | lower == "new"
+  changed_when: true
+
+- name: "[MAIN] - Join the new Domain Controller to the existing Domain."
+  ansible.builtin.command: >
+    samba-tool domain join
+      {{ sambadc_realm | upper }} DC
+      --dns-backend="{{ sambadc_dns }}"
+      --realm="{{ sambadc_realm | upper }}"
+      --username="{{ sambadc_realm.split('.')[0] | upper }}\\administrator"
+      --password='{{ sambadc_admin_password }}'
+  when: sambadc_type | lower == "join"
+  changed_when: true
+
+- name: "[MAIN] - Copy the 'krb5.conf' file to /etc/."
+  ansible.builtin.copy:
+    src: "{{ PRIVATE_DIR }}/krb5.conf"
+    dest: /etc/krb5.conf
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: "[MAIN] - set IP-address for local name resolution - Post-Provision."
+  ansible.builtin.set_fact:
+    dns_address: "127.0.0.1"
+
+- name: "{{ '[MAIN] - DNS-resolution re-directed to ' + sambadc_dns + ', writing to /etc/resolv.conf.' }}"
+  ansible.builtin.template:
+    src: templates/resolv.conf.j2
+    dest: /etc/resolv.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: "[MAIN] - (re-)start the Domain Controller."
+  ansible.builtin.service:
+    name: "samba-ad-dc"
+    state: restarted
+
+- name: "[MAIN] - Setup the names/bind9 DNS server if configured."
+  ansible.builtin.include_tasks: named.yml
+  when: sambadc_dns in [ "BIND9_FLATIFLE", "BIND9_DLZ" ]
+  tags:
+    - named
+
+- name: "[MAIN] - Write the smb.conf-file with the configured shares included"
+  ansible.builtin.template:
+    src: templates/smb.conf.j2
+    dest: "{{ CONFIGFILE }}"
+    lstrip_blocks: true
+    owner: root
+    group: root
+    mode: "0644"
+  when: sambadc_shares is defined
+  tags:
+    - shares
+
+- name: "[MAIN] - (re-)start the Domain Controller."
+  ansible.builtin.service:
+    name: "samba-ad-dc"
+    state: restarted
+
+- name: "[MAIN] - Check if the DC is operational and DNS works."
+  ansible.builtin.include_tasks: checks.yml
+  tags:
+    - check
+
+- name: "[MAIN] - Precautionary check of sysvol permissions."
+  ansible.builtin.command: samba-tool ntacl sysvolcheck
+  changed_when: true
+
+- name: "[MAIN] - Precautionary reset sysvol permissions."
+  ansible.builtin.command: samba-tool ntacl sysvolreset
+  changed_when: true
+
+# Setup the Network-time Protocol daemon, which will be used by the clients for time-
+# synchronization with signed messages.
+- name: "[MAIN] - Setup the Network Time Protocol Daemon with signed time/date from the DC."
+  ansible.builtin.include_tasks: ntpd.yml
+
+- name: "[MAIN] - (re)start ntpd-Daemon."
+  ansible.builtin.service:
+    name: "ntp"
+    state: restarted
+
+# Configure the Domain Controller.
+- name: "[MAIN] - Configure some settings of the Domain Controller."
+  ansible.builtin.include_tasks: settings.yml
+  when: sambadc_type | lower == "new"
+  tags:
+    - settings
+
+# Create users and groups in the new Domain Controller.
+- name: "[MAIN] - Create groups and group-memberships for the new Domain Controller."
+  ansible.builtin.include_tasks: groups.yml
+  when: sambadc_type | lower == "new"
+  tags:
+    - settings
+
+- name: "[MAIN] - Create users for and group memberships for the new Domain Controller."
+  ansible.builtin.include_tasks: users.yml
+  when: sambadc_type | lower == "new"
+  tags:
+    - settings
+
+# Install Group-Policy Templates
+- name: "[MAIN] - Copy and install GPO-Templates."
+  ansible.builtin.include_tasks: gpo.yml
+  when: sambadc_gpo_template is defined
+  tags:
+    - gpo
+
+# Reboot the host.
+# - name: "[MAIN] - Reboot the host now."
+#  reboot:

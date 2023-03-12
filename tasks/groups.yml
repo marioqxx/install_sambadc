@@ -1,0 +1,47 @@
+---
+# Create configured groups and their membership to other groups
+- name: "[GROUPS] - Obtaining existing Groups."
+  ansible.builtin.command: samba-tool group list
+  register: domain_groups
+  changed_when: false
+  tags:
+    - settings
+
+- name: "[GROUPS] - Create groups."
+  ansible.builtin.command: samba-tool group create "{{ item }}"
+  when: item not in domain_groups.stdout_lines
+  loop: "{{ sambadc_groups }}"
+  changed_when: true
+  tags:
+    - settings
+
+- name: "[GROUPS] - Re-Obtaining existing Groups."
+  ansible.builtin.command: samba-tool group list
+  register: domain_groups
+  changed_when: false
+  tags:
+    - settings
+
+- name: "[GROUPS] - Reading existing group memberships."
+  ansible.builtin.command: samba-tool group listmembers "{{ item }}"
+  register: domain_group_membership
+  loop: "{{ sambadc_groups }}"
+  changed_when: false
+  tags:
+    - settings
+
+- name: "[GROUPS] - Obtaining existing group memberships."
+  ansible.builtin.set_fact:
+    domain_group_memberships: "{{ domain_group_membership.results | items2dict(key_name='item', value_name='stdout_lines') }}"
+  tags:
+    - settings
+
+- name: "[GROUPS] - Setting up Group-membership with other groups."
+  ansible.builtin.command: samba-tool group addmembers "{{ item.0.group }}" "{{ item.1 }}"
+  loop: "{{ sambadc_groupmembership | subelements('members') }}"
+  when:
+    - item.1 in domain_groups.stdout_lines
+    - item.1 not in domain_group_memberships[item.0.group]
+  changed_when: true
+  tags:
+    - settings

@@ -1,0 +1,51 @@
+---
+# Remove all config-files and database-files for a fresh domain provision
+# Source: https://wiki.samba.org/index.php/Setting_up_Samba_as_an_Active_Directory_Domain_Controller#Fresh_Installation
+- name: "[CLEANUP] - Stop systemd-resolved and Samba related services."
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: "stopped"
+  loop:
+    - smbd
+    - nmbd
+    - winbind
+    - samba-ad-dc
+    - systemd-resolved
+
+- name: "[CLEANUP] - Collect samba DB-files in samba-directories."
+  ansible.builtin.find:
+    paths: "{{ item.path }}"
+    file_type: file
+    patterns: "{{ item.pattern }}"
+  register: sambadc_files
+  tags:
+    - cleanup
+  loop:
+    - { path: "{{ LOCKDIR }}", pattern: "*db" }
+    - { path: "{{ STATEDIR }}", pattern: "*db" }
+    - { path: "{{ CACHEDIR }}", pattern: "*db" }
+    - { path: "{{ PRIVATE_DIR }}", pattern: "*db" }
+    - { path: "{{ LOGFILEBASE }}", pattern: "*" }
+
+- name: "[CLEANUP] - Delete samba DB-files in samba-directories."
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ sambadc_files.results | map(attribute='files') | flatten | map(attribute='path') }}"
+  tags:
+    - cleanup
+
+- name: "[CLEANUP] - Delete samba sysvol folder(s)."
+  ansible.builtin.file:
+    path: "{{ STATEDIR + '/sysvol' }}"
+    state: absent
+  tags:
+    - cleanup
+
+- name: "[CLEANUP] - Delete samba smb.conf-file and Kerberos config file krb5.conf."
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ CONFIGFILE }}"
+    - "/etc/krb5.conf"
