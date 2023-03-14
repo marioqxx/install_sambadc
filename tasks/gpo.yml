@@ -2,7 +2,7 @@
 # Copy the GPO-Template file form the control host to the remote host. Note that the
 # GPO-template file shall be a packed file and shall include the ADMX-files in the root
 # and the ADML-files in subdirectories, such as: "de-DE" or "en-US"
-- name: "[GPO] - Create Temporary Directories to dowload templates to."
+- name: "[GPO] - Create Temporary Directories to download templates to."
   ansible.builtin.file:
     path: "/tmp/{{ item | basename }}"
     owner: root
@@ -37,7 +37,7 @@
   tags:
     - gpo
 
-- name: "[GPO] - Install configured GPO-Templates"
+- name: "[GPO] - Install configured GPO-Templates."
   ansible.builtin.command: >
     samba-tool gpo admxload -U Administrator -H "{{ sambadc_fqdn }}"
     --password="{{ sambadc_admin_password }}"

@@ -1,5 +1,5 @@
 ---
-- name: restart samba-ad-dc
-  service:
+- name: "[HANDLER] - Restart the Domain Controller."
+  ansbile.builtin.service:
     name: "samba-ad-dc"
     state: restarted

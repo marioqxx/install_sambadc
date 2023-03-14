@@ -29,10 +29,10 @@
     - sambadc_dns in [ "SAMBA_INTERNAL" ]
     - "'bind9' in ansible_facts.packages"
 
-- name: "[SYSTEMD] - Enable named/bind9, because BIND9_{FLATFILE, BLZ} is configured."
+- name: "[SYSTEMD] - Enable named/bind9, because BIND9_{FLATFILE, DLZ} is configured."
   ansible.builtin.systemd:
     name: named
-    state: started
+    state: stopped
     enabled: true
     masked: false
   when: sambadc_dns in [ "BIND9_FLATFILE", "BIND9_DLZ" ]
