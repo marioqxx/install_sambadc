@@ -17,9 +17,9 @@
     mode: "0440"
     force: true
 
-- name: "[NTPD] Set permission for directory /var/lib/samba/ntp_sign"
+- name: "{{ '[NTPD] Set permission for directory' + SAMBA_STATEDIR + '/ntp_signd' }}"
   ansible.builtin.file:
-    path: "/var/lib/samba/ntp_sign"
+    path: "{{ STATEDIR }}/ntp_signd"
     state: directory
     owner: "root"
     group: "ntp"

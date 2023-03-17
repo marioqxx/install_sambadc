@@ -1,5 +1,5 @@
 # Paremeters concerning the sambapackes to use
-sambadc_use_backport: False
+sambadc_use_backport: false
 
 # Core parameters for the domain controller
 sambadc_realm: "ads.orbit"
@@ -17,6 +17,9 @@ sambadc_timeservers:
   - name: "1.pool.ntp.org"
   - name: "2.pool.ntp.org"
 
+# Some further settings
+sambadc_reboot: false
+
 # Needs to be defined as empty for checks in usage.yml.
 STATEDIR: ""
 
@@ -25,5 +28,4 @@ STATEDIR: ""
 # during play.
 dns_address: "{{ sambadc_forwarder }}"
 sambadc_fqdn: "{{ ansible_hostname }}.{{ sambadc_realm }}"
-#sambadc_ipadress: "{{ ansible_facts.all_ipv4_adresses[0] }}"
-
+# sambadc_ipadress: "{{ ansible_facts.all_ipv4_adresses[0] }}"

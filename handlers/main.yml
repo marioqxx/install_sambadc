@@ -1,5 +1,5 @@
 ---
 - name: "[HANDLER] - Restart the Domain Controller."
-  ansbile.builtin.service:
+  ansible.builtin.service:
     name: "samba-ad-dc"
     state: restarted

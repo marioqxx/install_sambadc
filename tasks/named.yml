@@ -57,7 +57,7 @@
     - named
 
 # Start checking filesystem-permissions for bind9
-- name: "[NAMED] - Set file permission for the bind-files samba created during provisioning (bugfix 14535)."
+- name: "[NAMED] - Set file permissions for the bind-files samba created during provisioning (bugfix 14535)."
   ansible.builtin.file:
     path: "{{ item.path }}"
     state: "{{ item.state }}"

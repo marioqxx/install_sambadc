@@ -40,8 +40,8 @@
 - name: "[GPO] - Install configured GPO-Templates."
   ansible.builtin.command: >
     samba-tool gpo admxload -U Administrator -H "{{ sambadc_fqdn }}"
-    --password="{{ sambadc_admin_password }}"
-    --admx-dir="/tmp/{{ item | basename }}"
+      --password="{{ sambadc_admin_password }}"
+      --admx-dir="/tmp/{{ item | basename }}"
   changed_when: true
   loop: "{{ sambadc_gpo_template }}"
   when: sambadc_gpo_template is defined
@@ -92,7 +92,7 @@
 # I have opened a ticket to the samba-team.
 - name: "[GPO] - Install configured Group Policies."
   ansible.builtin.command: >
-    samba-tool gpo restore "{{ item | basename | split ('.') | first }}" "/tmp/{{ item | basename }}"
+    samba-tool gpo restore "{{ item | basename | split('.') | first }}" "/tmp/{{ item | basename }}"
       -U Administrator -H "{{ sambadc_fqdn }}"
       --password="{{ sambadc_admin_password }}"
   changed_when: true

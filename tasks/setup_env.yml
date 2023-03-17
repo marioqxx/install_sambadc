@@ -30,6 +30,7 @@
       - acl
       - net-tools
       - ldap-utils
+      - apparmor
       # - python3-cryptography
 
 - name: "[SETUP-ENV] - Install bind packages."
@@ -84,7 +85,7 @@
     - PRIVATE_DIR
     - BINDDNS_DIR
 
-# Directories returned form call smbd -b. Double-check presence, probably not needed.
+# Directories returned form call smbd -b. Double-check presence of mandatory, because used, directories. Probably not needed.
 - name: "[SETUP-ENV] - Check samba returned required directories."
   ansible.builtin.assert:
     that:

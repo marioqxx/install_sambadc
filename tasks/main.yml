@@ -67,23 +67,12 @@
     group: root
     mode: "0644"
 
-- name: "[MAIN] - set IP-address for local name resolution - Post-Provision."
-  ansible.builtin.set_fact:
-    dns_address: "127.0.0.1"
-
-- name: "{{ '[MAIN] - DNS-resolution re-directed to ' + sambadc_dns + ', writing to /etc/resolv.conf.' }}"
-  ansible.builtin.template:
-    src: templates/resolv.conf.j2
-    dest: /etc/resolv.conf
-    owner: root
-    group: root
-    mode: "0644"
-
-- name: "[MAIN] - (re-)start the Domain Controller."
+- name: "[MAIN] - (Re-)Start the Domain Controller."
   ansible.builtin.service:
     name: "samba-ad-dc"
     state: restarted
 
+# Setup the DNS through NAMED/BIND9 if configured.
 - name: "[MAIN] - Setup the names/bind9 DNS server if configured."
   ansible.builtin.include_tasks: named.yml
   when: sambadc_dns in [ "BIND9_FLATIFLE", "BIND9_DLZ" ]
@@ -102,10 +91,31 @@
   tags:
     - shares
 
-- name: "[MAIN] - (re-)start the Domain Controller."
+- name: "[MAIN] - Reload the Domain Controller configuration."
+  ansible.builtin.command: smbcontrol all reload-config
+
+# Setup the Network-time Protocol daemon, which will be used by the clients for time-
+# synchronization with signed messages.
+- name: "[MAIN] - Setup the Network Time Protocol Daemon with signed time/date from the DC."
+  ansible.builtin.include_tasks: ntpd.yml
+
+- name: "[MAIN] - (re)start ntpd-Daemon."
   ansible.builtin.service:
-    name: "samba-ad-dc"
+    name: "ntp"
     state: restarted
+
+# Now its time to start the Domain-controller.
+- name: "[MAIN] - set IP-address for local name resolution - Post-Provision."
+  ansible.builtin.set_fact:
+    dns_address: "127.0.0.1"
+
+- name: "{{ '[MAIN] - DNS-resolution re-directed to ' + sambadc_dns + ', writing to /etc/resolv.conf.' }}"
+  ansible.builtin.template:
+    src: templates/resolv.conf.j2
+    dest: /etc/resolv.conf
+    owner: root
+    group: root
+    mode: "0644"
 
 - name: "[MAIN] - Check if the DC is operational and DNS works."
   ansible.builtin.include_tasks: checks.yml
@@ -120,16 +130,7 @@
   ansible.builtin.command: samba-tool ntacl sysvolreset
   changed_when: true
 
-# Setup the Network-time Protocol daemon, which will be used by the clients for time-
-# synchronization with signed messages.
-- name: "[MAIN] - Setup the Network Time Protocol Daemon with signed time/date from the DC."
-  ansible.builtin.include_tasks: ntpd.yml
-
-- name: "[MAIN] - (re)start ntpd-Daemon."
-  ansible.builtin.service:
-    name: "ntp"
-    state: restarted
-
+# The Domain Controller shall now be up and running and functional.
 # Configure the Domain Controller.
 - name: "[MAIN] - Configure some settings of the Domain Controller."
   ansible.builtin.include_tasks: settings.yml
@@ -158,5 +159,6 @@
     - gpo
 
 # Reboot the host.
-# - name: "[MAIN] - Reboot the host now."
-#  reboot:
+- name: "[MAIN] - Reboot the host now."
+  ansible.builtin.reboot:
+  when: sambadc_reboot
