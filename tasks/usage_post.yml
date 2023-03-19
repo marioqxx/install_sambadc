@@ -1,0 +1,26 @@
+---
+# Do some checking of the configuration provided to this ansible script before running it.
+# However these checks require already the installed packages. Thus call it after setup_env.yml.
+- name: "[USAGE-POST] - Check smb.conf-file with the configured shares included."
+  when: sambadc_shares is defined
+  block:
+    - name: "[USAGE-POST] - Temporarily create smb.conf in /tmp folder with shares included."
+      ansible.builtin.template:
+        src: templates/smb.conf.j2
+        dest: /tmp/smb.conf
+        lstrip_blocks: true
+        owner: root
+        group: root
+        mode: "0644"
+        # validate="testparm -s %s"
+      changed_when: false
+
+    - name: "[USAGE-POST] - Check temporarily created smb.conf with testparm."
+      ansible.builtin.command: testparm -s /tmp/smb.conf
+      changed_when: false
+  always:
+    - name: "[USAGE-POST] - Delete temporarily created smb.conf in /tmp."
+      ansible.builtin.file:
+        path: /tmp/smb.conf
+        state: absent
+      changed_when: false

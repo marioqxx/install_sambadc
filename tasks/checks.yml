@@ -25,7 +25,7 @@
   tags:
     - check
 
-- name: "[CHECK] - DNS-Loockup A-Record of DC, returns IP-Adress."
+- name: "[CHECK] - DNS-Loockup A-Record of DC, returns IP-Address."
   ansible.builtin.command: host -t A "{{ sambadc_fqdn }}"
   register: df_cmd
   changed_when: false
@@ -60,7 +60,7 @@
 
     # Perform connection check
     # Does not work (yet) due tho this issue: https://groups.google.com/g/linux.debian.bugs.dist/c/aNuQQ77KLzk
-    # - name: "[CHECK] - Connection check via Kerveros authentication."
+    # - name: "[CHECK] - Test connection via Kerveros authentication."
     #  ansible.builtin.command: smbclient -L "{{ sambadc_fqdn }}" --use-krb5-ccache=/tmp/krb5cc_1000
     #  failed_when: false
     #  changed_when: false
@@ -77,14 +77,46 @@
   tags:
     - check
 
-- name: "[CHECK] - Test connection via username/password."
-  ansible.builtin.command: smbclient -L "{{ sambadc_fqdn }}" -U Administrator --password="{{ sambadc_admin_password }}"
+- name: "[CHECK] - Check if smbclient-version supports commandline --password option."
+  ansible.builtin.command: smbclient
+  register: df_cmd
+  failed_when: false
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - Test connection to netlogon via username/password."
-  ansible.builtin.command: smbclient //"{{ sambadc_fqdn }}"/netlogon -c "ls" -U Administrator --password="{{ sambadc_admin_password }}"
-  changed_when: false
+# Commandline option --password for smbclient only available form 4.15 on.
+- name: "[CHECK] - Test connection via username/password (smbclient with --password commandline option."
+  when: df_cmd.stdout is search("--password")
   tags:
     - check
+  block:
+    - name: "[CHECK] - Test connection via usaername/password (smbclient with password-option)."
+      ansible.builtin.command: smbclient -L "{{ sambadc_fqdn }}" -U Administrator --password="{{ sambadc_admin_password }}"
+      changed_when: false
+
+    - name: "[CHECK] - Test connection to netlogon via username/password (smbclient with password-option)."
+      ansible.builtin.command: smbclient //"{{ sambadc_fqdn }}"/netlogon -c "ls" -U Administrator --password="{{ sambadc_admin_password }}"
+      changed_when: false
+
+# Needed for pre 4.15 Version of samba.
+- name: "[CHECK] - Test connection via username/password (smbclient without --password commandline option."
+  when: df_cmd.stdout is not search("--password")
+  tags:
+    - check
+  block:
+    - name: "[CHECK] - Test connection via usaername/password (smbclient without password-option)."
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo {{ sambadc_admin_password }} | smbclient -L "{{ sambadc_fqdn }}" -U Administrator
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+    - name: "[CHECK] - Test connection to netlogon via username/password (smbclient without password-option)."
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo {{ sambadc_admin_password }} | smbclient -L "{{ sambadc_fqdn }}" -U Administrator
+      args:
+        executable: /bin/bash
+      changed_when: false

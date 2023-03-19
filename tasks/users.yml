@@ -7,7 +7,7 @@
   tags:
     - settings
 
-- name: "[USERS] - Create users."
+- name: "[USERS] - Create Users."
   ansible.builtin.command: >
     samba-tool user create "{{ item.username }}" "{{ item.password }}"
     --given-name="{{ item.given_name | default('\"\"') }}"
@@ -39,7 +39,7 @@
   tags:
     - settings
 
-- name: "[USERS] - Reading existing group memberships."
+- name: "[USERS] - Reading existing Group-memberships."
   ansible.builtin.command: samba-tool group listmembers "{{ item }}"
   register: domain_group_membership
   loop: "{{ sambadc_usergroupmembership | map(attribute='members') | flatten | unique }}"
@@ -47,7 +47,7 @@
   tags:
     - settings
 
-- name: "[USERS] - Obtaining existing group memberships."
+- name: "[USERS] - Obtaining existing Group-memberships."
   ansible.builtin.set_fact:
     domain_group_memberships: "{{ domain_group_membership.results | items2dict(key_name='item', value_name='stdout_lines') }}"
   tags:

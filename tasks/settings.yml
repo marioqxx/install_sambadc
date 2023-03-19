@@ -3,6 +3,8 @@
 - name: "[SETTINGS] - Disable password expiration for the Administrator account."
   ansible.builtin.command: samba-tool user setexpiry Administrator --noexpiry
   changed_when: true
+  tags:
+    - settings
 
 - name: "[SETTINGS] - Disable password history at the domain level"
   ansible.builtin.command: samba-tool domain passwordsettings set --"{{ item.setting }}"="{{ item.value }}"
@@ -13,8 +15,18 @@
     - { setting: "min-pwd-length", value: "4" }
     - { setting: "history-length", value: "0" }
   changed_when: true
+  tags:
+    - settings
 
 # Set the DiskOperatorPrivilege for Administrator
+- name: "[SETTINGS] - Check if the net command supports password command-line option."
+  ansible.builtin.command: net help
+  register: df_cmd
+  failed_when: false
+  changed_when: false
+  tags:
+    - settings
+
 - name: "[SETTINGS] - Set DiskOperatorPrivilege for Administrator."
   ansible.builtin.command: >
     net rpc rights grant "{{ sambadc_realm.split('.')[0] | upper + '\Domain Admins' }}"
@@ -22,3 +34,17 @@
       --user "{{ sambadc_realm.split('.')[0] | upper + '\Administrator' }}"
       --password "{{ sambadc_admin_password }}"
   changed_when: true
+  when: df_cmd.stdout is search("--password")
+  tags:
+    - settings
+
+- name: "[SETTINGS] - Set DiskOperatorPrivilege for Administrator."
+  ansible.builtin.shell: |
+    set -o pipefail
+    echo {{ sambadc_admin_password }} | net rpc rights grant "{{ sambadc_realm.split('.')[0] | upper + '\Domain Admins' }}" SeDiskOperatorPrivilege --user "{{ sambadc_realm.split('.')[0] | upper + '\Administrator' }}"
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when: df_cmd.stdout is not search("--password")
+  tags:
+    - settings

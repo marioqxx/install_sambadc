@@ -8,7 +8,7 @@
         workgroup = {{ sambadc_realm.split('.')[0] | upper }}
         idmap_ldb:use rfc2307 = yes
 {% if sambadc_bind_interfaces is defined %}
-        bind only interfaces = yes
+        bind interfaces only = yes
         interfaces = {{ sambadc_bind_interfaces }}
 {% endif %}
 {% if sambadc_dns in [ "BIND9", "BIND9_DLZ" ] %}

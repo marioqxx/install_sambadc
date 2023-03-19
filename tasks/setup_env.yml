@@ -31,6 +31,7 @@
       - net-tools
       - ldap-utils
       - apparmor
+      - unzip
       # - python3-cryptography
 
 - name: "[SETUP-ENV] - Install bind packages."

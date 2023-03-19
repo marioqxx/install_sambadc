@@ -37,27 +37,41 @@
 
 # Create Reverse zone and associated entry for Reverse resolution on host.
 - name: "[NAMED] - Add a Reversezone."
-  ansible.builtin.shell: |
-    set -o pipefail
-    echo {{ sambadc_admin_password }} | samba-tool dns zonecreate localhost 1.168.192.in-addr.arpa -U Administrator
-  args:
-    executable: /bin/bash
+  ansible.builtin.command: >
+    samba-tool dns zonecreate localhost 1.168.192.in-addr.arpa -U Administrator --password={{ sambadc_admin_password }}
   changed_when: true
   tags:
     - named
 
 - name: "[NAMED] - Add the host to the Reversezone."
-  ansible.builtin.shell: |
-    set -o pipefail
-    echo {{ sambadc_admin_password }} | samba-tool dns add localhost 1.168.192.in-addr.arpa 130 PTR {{ sambadc_fqdn }} -U Administrator
-  args:
-    executable: /bin/bash
+  ansible.builtin.command: >
+    samba-tool dns add localhost 1.168.192.in-addr.arpa 130 PTR {{ sambadc_fqdn }} -U Administrator --password={{ sambadc_admin_password }}
   changed_when: true
   tags:
     - named
 
+# - name: "[NAMED] - Add a Reversezone."
+#  ansible.builtin.shell: |
+#    set -o pipefail
+#    echo {{ sambadc_admin_password }} | samba-tool dns zonecreate localhost 1.168.192.in-addr.arpa -U Administrator
+#  args:
+#    executable: /bin/bash
+#  changed_when: true
+#  tags:
+#    - named
+
+# - name: "[NAMED] - Add the host to the Reversezone."
+#  ansible.builtin.shell: |
+#    set -o pipefail
+#    echo {{ sambadc_admin_password }} | samba-tool dns add localhost 1.168.192.in-addr.arpa 130 PTR {{ sambadc_fqdn }} -U Administrator
+#  args:
+#    executable: /bin/bash
+#  changed_when: true
+#  tags:
+#    - named
+
 # Start checking filesystem-permissions for bind9
-- name: "[NAMED] - Set file permissions for the bind-files samba created during provisioning (bugfix 14535)."
+- name: "[NAMED] - Set file permissions for the bind-files that Samba created during provisioning (bugfix 14535)."
   ansible.builtin.file:
     path: "{{ item.path }}"
     state: "{{ item.state }}"

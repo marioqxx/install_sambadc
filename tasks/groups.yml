@@ -8,7 +8,7 @@
     - settings
 
 - name: "[GROUPS] - Create groups."
-  ansible.builtin.command: samba-tool group create "{{ item }}"
+  ansible.builtin.command: samba-tool group add "{{ item }}"
   when: item not in domain_groups.stdout_lines
   loop: "{{ sambadc_groups }}"
   changed_when: true

@@ -13,6 +13,9 @@
     - limits
     - cleanup
 
+- name: "[MAIN] - Sanity check variables given for extended configuration."
+  ansible.builtin.include_tasks: usage_post.yml
+
 - name: "[MAIN] - Cleanup any existing config, DB and log-files of an existing DC"
   ansible.builtin.include_tasks: cleanup.yml
   tags:
@@ -93,6 +96,7 @@
 
 - name: "[MAIN] - Reload the Domain Controller configuration."
   ansible.builtin.command: smbcontrol all reload-config
+  changed_when: false
 
 # Setup the Network-time Protocol daemon, which will be used by the clients for time-
 # synchronization with signed messages.
