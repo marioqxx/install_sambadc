@@ -94,6 +94,22 @@
       - PRIVATE_DIR is defined
       - CONFIGFILE is defined
       - STATEDIR is defined
+    msg: "smbd -b did not return required directories. Internal error."
+
+# Get the interface. Needed for creation of reverse-zone and entry for bind9/named.
+- name: "[SETUP-ENV] - Get interface IP-addresses when bind interfaces only is defined."
+  ansible.builtin.set_fact:
+    iface: "{{ ansible_facts[sambadc_bind_interfaces] }}"
+  when: sambadc_bind_interfaces is defined
+  tags:
+    - named
+
+- name: "[SETUP-ENV] - Get interface IP-addresses when only one interface is present."
+  ansible.builtin.set_fact:
+    iface: "{{ ansible_facts[ansible_facts.interfaces | reject('match', 'lo') | join] }}"
+  when: sambadc_bind_interfaces is not defined
+  tags:
+    - named
 
 # Early binding to IPv6 during DHCP-address assignment, which may not be complete
 # at startup when "samba-ad-dc"-service starts.

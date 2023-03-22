@@ -5,6 +5,8 @@
 # ATTENTION: THIS WILL DELETE YOUR CURRENT CONFIGURED DC IRREVOCABLY.
 - name: "[MAIN] - Sanity check variables given for minimum configuration."
   ansible.builtin.include_tasks: usage.yml
+  tags:
+    - named
 
 # Install the packages needed for a samba DC and if configured from additional repository.
 - name: "[MAIN] - Install the required packages and make other required/useful system-settings."
@@ -15,6 +17,8 @@
 
 - name: "[MAIN] - Sanity check variables given for extended configuration."
   ansible.builtin.include_tasks: usage_post.yml
+  tags:
+    - named
 
 - name: "[MAIN] - Cleanup any existing config, DB and log-files of an existing DC"
   ansible.builtin.include_tasks: cleanup.yml

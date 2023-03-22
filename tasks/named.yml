@@ -1,4 +1,22 @@
 ---
+# Get the interface, so that IPv4 and IPv6 adresse for Reverse-lookup can be extracted.
+# The adresses are used to put together an PTR-record.
+# Currently IPv6 implementation needs to be completed.
+# IPv4 may also need some revision for e.g. 192.168.0.0/16 subnets the PTR may lack a leading zero.
+- name: "[NAMED] - Build the IPv4 & IPv6 PTR-record."
+  ansible.builtin.set_fact:
+    ipv4net: "{{ iface.ipv4.network | replace('.0', '') + '.' }}"
+    ipv4ptr: "{{ iface.ipv4.network | ansible.utils.ipaddr('revdns') | replace('0.', '') }}"
+    ipv6ptr: "{{ iface.ipv6[0].address | ansible.utils.ipaddr('revdns') }}"
+  tags:
+    - named
+
+- name: "[NAMED] - Extract Host Subnet-Address."
+  ansible.builtin.set_fact:
+    ipv4host: "{{ iface.ipv4.address | replace(ipv4net, '') }}"
+  tags:
+    - named
+
 # Source: https://bugzilla.samba.org/show_bug.cgi?id=14535
 # Fixes an issue that existed in pre 4.15 versions.
 - name: "[NAMED] - Copy dns.keytab (bugfix for 14535)."
@@ -9,7 +27,9 @@
     group: bind
     mode: "0644"
     remote_src: true
-  when: "'14.14' in sambadc_version.stdout"
+  when: sambadc_version.stdout is not match("14")
+  tags:
+    - named
 
 # Do all the changes to /etc/bind/named.conf.options
 - name: "[NAMED] - Modify named.conf.options"
@@ -21,12 +41,16 @@
            };
            tkey-gssapi-keytab "{{ BINDDNS_DIR }}/dns.keytab";
     insertafter: '// };'
+  tags:
+    - named
 
 - name: "[NAMED] - Change DNSSEC to \"no\""
   ansible.builtin.replace:
     path: /etc/bind/named.conf.options
     regexp: 'dnssec-validation auto;'
     replace: 'dnssec-validation no;'
+  tags:
+    - named
 
 # Do all the changes to /etc/bind/named.conf.local
 - name: "[NAMED] - Modify named.conf.local"
@@ -34,41 +58,25 @@
     path: /etc/bind/named.conf.local
     block: |
            include "{{ BINDDNS_DIR }}/named.conf";
+  tags:
+    - named
 
 # Create Reverse zone and associated entry for Reverse resolution on host.
 - name: "[NAMED] - Add a Reversezone."
   ansible.builtin.command: >
-    samba-tool dns zonecreate localhost 1.168.192.in-addr.arpa -U Administrator --password={{ sambadc_admin_password }}
+    samba-tool dns zonecreate localhost {{ ipv4ptr }} -U Administrator --password={{ sambadc_admin_password }}
   changed_when: true
+  failed_when: false
+  register: df_cmd
   tags:
     - named
 
 - name: "[NAMED] - Add the host to the Reversezone."
   ansible.builtin.command: >
-    samba-tool dns add localhost 1.168.192.in-addr.arpa 130 PTR {{ sambadc_fqdn }} -U Administrator --password={{ sambadc_admin_password }}
+    samba-tool dns add localhost {{ ipv4ptr }} {{ ipv4host }} PTR {{ sambadc_fqdn }} -U Administrator --password={{ sambadc_admin_password }}
   changed_when: true
   tags:
     - named
-
-# - name: "[NAMED] - Add a Reversezone."
-#  ansible.builtin.shell: |
-#    set -o pipefail
-#    echo {{ sambadc_admin_password }} | samba-tool dns zonecreate localhost 1.168.192.in-addr.arpa -U Administrator
-#  args:
-#    executable: /bin/bash
-#  changed_when: true
-#  tags:
-#    - named
-
-# - name: "[NAMED] - Add the host to the Reversezone."
-#  ansible.builtin.shell: |
-#    set -o pipefail
-#    echo {{ sambadc_admin_password }} | samba-tool dns add localhost 1.168.192.in-addr.arpa 130 PTR {{ sambadc_fqdn }} -U Administrator
-#  args:
-#    executable: /bin/bash
-#  changed_when: true
-#  tags:
-#    - named
 
 # Start checking filesystem-permissions for bind9
 - name: "[NAMED] - Set file permissions for the bind-files that Samba created during provisioning (bugfix 14535)."
@@ -78,6 +86,8 @@
     owner: root
     group: bind
     mode: "{{ item.mode }}"
+  tags:
+    - named
   loop:
     - { path: "{{ BINDDNS_DIR }}", state: "directory", mode: "0770" }
     - { path: "{{ BINDDNS_DIR }}/dns", state: "directory", mode: "0770" }
@@ -91,6 +101,8 @@
     file_type: file
     patterns: "*"
   register: db_files
+  tags:
+    - named
 
 - name: "[NAMED] - Checking permission for BINDDNS_DIR/dns/sam.ldb.d/*"
   ansible.builtin.file:
@@ -99,6 +111,8 @@
     owner: root
     group: bind
     mode: "0660"
+  tags:
+    - named
   loop: "{{ db_files.files }}"
 
 # Restart bind9 after setting up the domain
@@ -106,3 +120,5 @@
   ansible.builtin.service:
     name: named
     state: restarted
+  tags:
+    - named

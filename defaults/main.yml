@@ -20,9 +20,6 @@ sambadc_timeservers:
 # Some further settings
 sambadc_reboot: false
 
-# Needs to be defined as empty for checks in usage.yml.
-STATEDIR: ""
-
 # Helper setting for interims DNS-resolution needed for packages download.
 # Note: Due to variable-precedence rules has to be set in defaults. Will be changed
 # during play.

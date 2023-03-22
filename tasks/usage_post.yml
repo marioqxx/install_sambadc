@@ -12,15 +12,29 @@
         owner: root
         group: root
         mode: "0644"
-        # validate="testparm -s %s"
       changed_when: false
 
     - name: "[USAGE-POST] - Check temporarily created smb.conf with testparm."
-      ansible.builtin.command: testparm -s /tmp/smb.conf
+      ansible.builtin.command: samba-tool testparm --suppress-prompt -s /tmp/smb.conf
+      register: df_cmd
       changed_when: false
+
+    - name: "[USAGE-POST] - Check output of testparm for an error entry."
+      ansible.builtin.assert:
+        that:
+          - df_cmd.stderr | upper is not match("UNKNOWN")
+          - df_cmd.stderr | upper is not match("ERROR")
+        msg: "{{ df_cmd.stderr_lines | select('match', 'ERROR', 'UNKNOWN') }}"
+
   always:
     - name: "[USAGE-POST] - Delete temporarily created smb.conf in /tmp."
       ansible.builtin.file:
         path: /tmp/smb.conf
         state: absent
       changed_when: false
+
+- name: "[USAGE-POST] - Check if subnet-prefix is either 8, 16, or 24."
+  ansible.builtin.meta: end_play
+  when: iface.ipv4.prefix not in [ '8', '16', '24' ]
+  tags:
+    - named
