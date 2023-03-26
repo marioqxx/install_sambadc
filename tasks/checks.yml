@@ -27,16 +27,21 @@
 
 - name: "[CHECK] - DNS-Loockup A-Record of DC, returns IP-Address."
   ansible.builtin.command: host -t A "{{ sambadc_fqdn }}"
-  register: df_cmd
   changed_when: false
   tags:
     - check
 
 - name: "[CHECK] - DNS-Reverse-Loockup DC (ipv4 only)."
   ansible.builtin.command: host "{{ df_cmd.stdout | regex_findall('[0-9]+.[0-9]+.[0-9]+.[0-9]+') | join }}"
+  failed_when: false
   changed_when: false
-  register: df_cmd
-  ignore_errors: true
+  tags:
+    - check
+
+- name: "[CHECK] - DNS-Loockup checking configured forward DNS-server."
+  ansible.builtin.command: host -t A "{{ sambadc_check_forwardzone_host }}"
+  failed_when: false
+  changed_when: false
   tags:
     - check
 
@@ -120,3 +125,7 @@
       args:
         executable: /bin/bash
       changed_when: false
+
+# Check SSL access to LDAP if configured.
+# - name: "[CHECK] - Test LDAP-access via SSL."
+#  ansible.builtin.command: openssl

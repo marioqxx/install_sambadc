@@ -1,2 +1,16 @@
 ---
 # vars file for ansible-role-sambadc
+#
+# Helper setting for interims DNS-resolution needed for packages download.
+# Note: Due to variable-precedence rules has to be set in defaults. Will be changed
+# during play.
+dns_address: "{{ sambadc_forwarder }}"
+sambadc_fqdn: "{{ ansible_hostname }}.{{ sambadc_realm }}"
+sambadc_workgroup: "{{ sambadc_realm.split('.')[0] | upper }}"
+
+# Ansible bug. Does not work. Reverting to original quirky version
+# of settings.yml.
+# NOTE, did not work either.
+# bs: '\'
+# sambadc_adm_user: "{{ sambadc_workgroup ~ bs ~ 'Administator' }}"
+# sambadc_adm_group: "{{ sambadc_workgroup ~ bs ~ 'Domain Admins' }}"

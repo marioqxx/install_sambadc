@@ -1,11 +1,13 @@
 #jinja2: trim_blocks:True, lstrip_blocks:True
 # Ansible generated config-file
 [global]
+{% if sambadc_dns in [ "SAMBA_INTERNAL" ] %}
         dns forwarder = {{ sambadc_forwarder }}
-        netbios name = {{ inventory_hostname | upper }} 
+{% endif %}
+        netbios name = {{ inventory_hostname | upper }}
         realm = {{ sambadc_realm | upper }}
         server role = active directory domain controller
-        workgroup = {{ sambadc_realm.split('.')[0] | upper }}
+        workgroup = {{ sambadc_workgroup }}
         idmap_ldb:use rfc2307 = yes
 {% if sambadc_bind_interfaces is defined %}
         bind interfaces only = yes
@@ -20,6 +22,20 @@
         # https://wiki.samba.org/index.php/Setting_up_Samba_as_an_Active_Directory_Domain_Controller#Using_the_Domain_Controller_as_a_File_Server_.28Optional.29
         vfs objects = btrfs acl_xattr dfs_samba4
         map acl inherit = yes 
+{% endif %}
+	tls priority = NORMAL:-VERS-TLS1.0:-VERS-TLS1.1
+{% if sambadc_tls_ca is defined %}
+	tls cafile = tls/{{ sambadc_tls_ca | basename }}
+{% endif %}
+{% if sambadc_tls_cert is defined %}
+    {% if sambadc_tls_intermed is defined %}
+	tls certfile = tls/{{ (sambadc_tls_cert | basename).split('.')[:-1] | join('.') }}.pem
+    {% else %}
+	tls certfile = tls/{{ sambadc_tls_cert | basename }}
+    {% endif %}
+{% endif %}
+{% if sambadc_tls_key is defined %}
+	tls keyfile = tls/{{ sambadc_tls_key | basename }}
 {% endif %}
 
 [sysvol]

@@ -29,22 +29,27 @@
 
 - name: "[SETTINGS] - Set DiskOperatorPrivilege for Administrator."
   ansible.builtin.command: >
-    net rpc rights grant "{{ sambadc_realm.split('.')[0] | upper + '\Domain Admins' }}"
+    net rpc rights grant "{{ sambadc_workgroup + '\Domain Admins' }}"
       SeDiskOperatorPrivilege
-      --user "{{ sambadc_realm.split('.')[0] | upper + '\Administrator' }}"
+      --user "{{ sambadc_workgroup + '\Administrator' }}"
       --password "{{ sambadc_admin_password }}"
   changed_when: true
   when: df_cmd.stdout is search("--password")
   tags:
     - settings
 
+# This complicated way to express user and password is reuiqred due to ansible-bugs
+# handling "\" and in order not to exceed line-length limits.
 - name: "[SETTINGS] - Set DiskOperatorPrivilege for Administrator."
   ansible.builtin.shell: |
     set -o pipefail
-    echo {{ sambadc_admin_password }} | net rpc rights grant "{{ sambadc_realm.split('.')[0] | upper + '\Domain Admins' }}" SeDiskOperatorPrivilege --user "{{ sambadc_realm.split('.')[0] | upper + '\Administrator' }}"
+    echo {{ sambadc_admin_password }} | net rpc rights grant "{{ sdcdm + '\Domain Admins' }}" SeDiskOperatorPrivilege --user "{{ sdcdm + '\Administrator' }}"
   args:
     executable: /bin/bash
   changed_when: true
+  vars:
+    sdcdm: sambadc_workgroup
+#    sdcdm: "{{ sambadc_realm.split('.')[0] | upper }}"
   when: df_cmd.stdout is not search("--password")
   tags:
     - settings

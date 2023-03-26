@@ -10,23 +10,74 @@
       - sambadc_type | lower is in [ "new", "join" ]
       - sambadc_timezone is defined
     msg: "There is an error setting in the minimal configuration parameters."
+  tags:
+    - named
 
 - name: "[USAGE] - Check interfaces and presence of bind only interfaces config parameter. (1/3)."
   ansible.builtin.meta: end_play
   when: ( ansible_facts.interfaces | length < 3 ) and ( "lo" not in ansible_facts.interfaces | lower )
+  tags:
+    - named
 
 - name: "[USAGE] - Check interfaces and presence of bind only interfaces config parameter. (2/3)."
   ansible.builtin.meta: end_play
   when:
     - ansible_facts.interfaces | length >= 3
     - sambadc_bind_interfaces is not defined
+  tags:
+    - named
 
 - name: "[USAGE] - Check interfaces and presence of bind only interfaces config parameter. (3/3)."
   ansible.builtin.meta: end_play
   when:
     - ansible_facts.interfaces | length >= 3
     - sambadc_bind_interfaces | lower not in ansible_facts.interfaces | lower
+  tags:
+    - named
 
 - name: "[USAGE] - Check if inventory-hostname and host-hostname match."
   ansible.builtin.meta: end_play
   when: inventory_hostname | lower != ansible_hostname | lower
+  tags:
+    - named
+
+- name: "[USAGE] - Check if TLS-certificates are correctly configured."
+  ansible.builtin.assert:
+    that:
+      - sambadc_tls_ca is defined
+      - sambadc_tls_cert is defined
+      - sambadc_tls_key is defined
+    msg: "TLS-certificates are defined. This requires all three parameters sambadc_tls_ca, sambadc_tls_cert and sambadc_tls_key to be set."
+  when: (sambadc_tls_ca is defined) or (sambadc_tls_cert is defined) or (samba_tls_key is defined)
+
+# Requires openssl install on control host.
+- name: "[USAGE] - Check provided certificate chain."
+  when: sambadc_tls_cert is defined
+  block:
+    - name: "[USAGE] - Check Certififcate chain, no intermed CA is defined."
+      ansible.builtin.command: openssl verify -purpose sslserver -CAfile "{{ sambadc_tls_ca }}" "{{ sambadc_tls_cert }}"
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      when: sambadc_tls_intermed is not defined
+
+    - name: "[USAGE] - Check Certififcate chain, with intermed CA is defined."
+      when: sambadc_tls_intermed is defined
+      block:
+        - name: "[USAGE] - Check Certififcate chain part: Root CA <-> Intermed CA."
+          ansible.builtin.command: openssl verify -partial_chain -CAfile "{{ ca_file }}" "{{ crt_file }}"
+          delegate_to: localhost
+          become: false
+          changed_when: false
+          vars:
+            ca_file: "{{ playbook_dir }}/{{ sambadc_tls_ca }}"
+            crt_file: "{{ playbook_dir }}/{{ sambadc_tls_intermed }}"
+
+        - name: "[USAGE] - Check Certififcate chain part: Intermed CA <-> Certificate ."
+          ansible.builtin.command: openssl verify -partial_chain -CAfile "{{ ca_file }}" "{{ crt_file }}"
+          delegate_to: localhost
+          become: false
+          changed_when: false
+          vars:
+            ca_file: "{{ playbook_dir }}/{{ sambadc_tls_intermed }}"
+            crt_file: "{{ playbook_dir }}/{{ sambadc_tls_cert }}"

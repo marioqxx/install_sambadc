@@ -14,6 +14,8 @@
   tags:
     - limits
     - cleanup
+    - named
+    - install
 
 - name: "[MAIN] - Sanity check variables given for extended configuration."
   ansible.builtin.include_tasks: usage_post.yml
@@ -98,9 +100,10 @@
   tags:
     - shares
 
-- name: "[MAIN] - Reload the Domain Controller configuration."
-  ansible.builtin.command: smbcontrol all reload-config
-  changed_when: false
+- name: "[MAIN] - (Re-)Start the Domain Controller."
+  ansible.builtin.service:
+    name: "samba-ad-dc"
+    state: restarted
 
 # Setup the Network-time Protocol daemon, which will be used by the clients for time-
 # synchronization with signed messages.

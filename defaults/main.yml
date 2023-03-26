@@ -10,6 +10,10 @@ sambadc_admin_password: 'PassW0rD'
 # sambadc_type: new or join
 sambadc_type: "new"
 
+# TLS
+sambadc_tls_ca_install_system: false
+sambadc_tls_install_dir: "/usr/local/share/ca-certificates"
+
 # The timezone the DC is in.
 sambadc_timezone: "Europe/Vienna"
 sambadc_timeservers:
@@ -20,9 +24,5 @@ sambadc_timeservers:
 # Some further settings
 sambadc_reboot: false
 
-# Helper setting for interims DNS-resolution needed for packages download.
-# Note: Due to variable-precedence rules has to be set in defaults. Will be changed
-# during play.
-dns_address: "{{ sambadc_forwarder }}"
-sambadc_fqdn: "{{ ansible_hostname }}.{{ sambadc_realm }}"
-# sambadc_ipadress: "{{ ansible_facts.all_ipv4_adresses[0] }}"
+# Used to check DNS forward-zone configuration.
+sambadc_check_forwardzone_host: "www.google.com"

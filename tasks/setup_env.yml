@@ -6,40 +6,62 @@
     state: present
     update_cache: true
   when: sambadc_use_backport
+  tags:
+    - install
 
 # Update packages cache and install required packages.
 - name: "[SETUP-ENV] - Update packages cache."
   ansible.builtin.apt:
     update_cache: true
     cache_valid_time: 86400
+    default_release: "{{ 'bullseye-backports' if sambadc_use_backport | default(false) else omit }}"
   failed_when: false
+  tags:
+    - install
 
 - name: "[SETUP-ENV] - Install samba packages."
   ansible.builtin.apt:
-    pkg:
-      - krb5-config
-      - krb5-user
-      - libnss-winbind
-      - libpam-winbind
-      - winbind
-      - samba
-      - smbclient
-      - ldb-tools
-      - samba-common
-      - ntp
-      - acl
-      - net-tools
-      - ldap-utils
-      - apparmor
-      - unzip
-      # - python3-cryptography
+    name: "{{ item }}"
+    state: present
+    allow_downgrade: true
+    default_release: "{{ 'bullseye-backports' if sambadc_use_backport | default(false) else omit }}"
+  loop:
+    - krb5-config
+    - krb5-user
+    - libnss-winbind
+    - libpam-winbind
+    - winbind
+    - samba
+    - smbclient
+    - ldb-tools
+    - samba-common
+    - ntp
+    - acl
+    - net-tools
+    - ldap-utils
+    - apparmor
+    - unzip
+    # - python3-cryptography
+  tags:
+    - install
 
 - name: "[SETUP-ENV] - Install bind packages."
   ansible.builtin.apt:
-    pkg:
-      - bind9
-      - dnsutils
+    name: "{{ item }}"
+    state: present
+    allow_downgrade: true
   when: sambadc_dns in [ "BIND9_FLATFILE", "BIND9_DLZ" ]
+  loop:
+    - bind9
+    - dnsutils
+  tags:
+    - named
+    - install
+
+- name: "[SETUP-ENV] - Packages Autoclean and Autoremove."
+  ansible.builtin.apt:
+    autoclean: true
+    autoremove: true
 
 - name: "[SETUP-ENV] - Obtain list of installed packages."
   ansible.builtin.package_facts:
@@ -49,24 +71,40 @@
   ansible.builtin.command: samba -V
   register: sambadc_version
   changed_when: false
+  tags:
+    - named
 
 - name: "[SETUP-ENV] - Update libraries."
   ansible.builtin.command: ldconfig
   changed_when: true
 
+# Get the interface. Needed for creation of reverse-zone and entry for bind9/named.
+- name: "[SETUP-ENV] - Get interface IP-addresses when bind interfaces only is defined."
+  ansible.builtin.set_fact:
+    iface: "{{ ansible_facts[sambadc_bind_interfaces] }}"
+  when: sambadc_bind_interfaces is defined
+  tags:
+    - named
+
+- name: "[SETUP-ENV] - Get interface IP-addresses when only one interface is present."
+  ansible.builtin.set_fact:
+    iface: "{{ ansible_facts[ansible_facts.interfaces | reject('match', 'lo') | join] }}"
+  when: sambadc_bind_interfaces is not defined
+  tags:
+    - named
+
 # Read the various directories Samba uses.
 - name: "[SETUP-ENV] - Obtain samba-files and/or directories to delete."
   ansible.builtin.command: smbd -b
   register: df_cmd
+  changed_when: false
   tags:
     - cleanup
-  changed_when: false
+    - named
 
 - name: "[SETUP-ENV] - Create Variables and set to associated directory."
   ansible.builtin.set_fact:
     "{{ item }}": "{{ df_cmd.stdout_lines | select('match', '.*' + item + '.*') | join(' ') | split(':') | last | trim }}"
-  tags:
-    - cleanup
   loop:
     - SBINDIR
     - BINDIR
@@ -85,6 +123,9 @@
     - SMB_PASSWD_FILE
     - PRIVATE_DIR
     - BINDDNS_DIR
+  tags:
+    - cleanup
+    - named
 
 # Directories returned form call smbd -b. Double-check presence of mandatory, because used, directories. Probably not needed.
 - name: "[SETUP-ENV] - Check samba returned required directories."
@@ -95,19 +136,6 @@
       - CONFIGFILE is defined
       - STATEDIR is defined
     msg: "smbd -b did not return required directories. Internal error."
-
-# Get the interface. Needed for creation of reverse-zone and entry for bind9/named.
-- name: "[SETUP-ENV] - Get interface IP-addresses when bind interfaces only is defined."
-  ansible.builtin.set_fact:
-    iface: "{{ ansible_facts[sambadc_bind_interfaces] }}"
-  when: sambadc_bind_interfaces is defined
-  tags:
-    - named
-
-- name: "[SETUP-ENV] - Get interface IP-addresses when only one interface is present."
-  ansible.builtin.set_fact:
-    iface: "{{ ansible_facts[ansible_facts.interfaces | reject('match', 'lo') | join] }}"
-  when: sambadc_bind_interfaces is not defined
   tags:
     - named
 
@@ -120,6 +148,67 @@
     state: present
     sysctl_set: true
     reload: true
+
+# Copy the certificates if configured and if an intermed-CA is defined, concatenate
+# the certificate to include the intermed-ca certificate.
+- name: "[SETUP-ENV] - Copy Certificate files to host."
+  ansible.builtin.copy:
+    src: "{{ item.file }}"
+    dest: "{{ PRIVATE_DIR }}/tls"
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  when: sambadc_tls_cert is defined
+  loop:
+    - { file: "{{ sambadc_tls_cert }}", mode: "0644" }
+    - { file: "{{ sambadc_tls_key }}", mode: "0600" }
+    - { file: "{{ sambadc_tls_ca }}", mode: "0644" }
+
+- name: "[SETUP-ENV] - Copy Intermed CA Certificate file to host and concatenate with Certificate-file."
+  when: sambadc_tls_intermed is defined
+  block:
+    - name: "[SETUP-ENV] - Copy Intermed CA Certificate file to host."
+      ansible.builtin.copy:
+        src: "{{ sambadc_tls_intermed }}"
+        dest: "{{ PRIVATE_DIR }}/tls/"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: "[SETUP-ENV] - Concatenate intermed certificate file with certificate file for Samba."
+      ansible.builtin.template:
+        src: templates/concatenate.j2
+        dest: "{{ PRIVATE_DIR }}/tls/{{ fname.split('.')[:-1] | join('.') }}.pem"
+        owner: root
+        group: root
+        mode: "0644"
+      vars:
+        fname: "{{ sambadc_tls_cert | basename }}"
+        input_files: ["{{ sambadc_tls_cert }}", "{{ sambadc_tls_intermed }}"]
+
+    - name: "[SETUP-ENV] - Delete Intermed CA Certificate file from host."
+      ansible.builtin.file:
+        path: "{{ PRIVATE_DIR }}/tls/{{ sambadc_tls_intermed | basename }}"
+        state: absent
+
+- name: "[SETUP-ENV] - Install Root-CA certificate in system wide trusted CA-store."
+  when: sambadc_tls_ca_install_system
+  block:
+    - name: "[SETUP-ENV] - Copy Root CA Certificate file to host trusted CA-store."
+      ansible.builtin.copy:
+        src: "{{ sambadc_tls_ca }}"
+        dest: "{{ sambadc_tls_install_dir }}"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: "[SETUP-ENV] - Add Root CA Certificate file to trusted CA-store (1/2)."
+      ansible.builtin.command: update-ca-certificates
+      changed_when: true
+
+    - name: "[SETUP-ENV] - Add Root CA Certificate file to trusted CA-store (2/2)."
+      ansible.builtin.command: dpkg-reconfigure -u -p critical ca-certificates
+      changed_when: true
 
 # Set limits.
 # ulimit -n 65536 or unlimited
