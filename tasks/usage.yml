@@ -11,13 +11,13 @@
       - sambadc_timezone is defined
     msg: "There is an error setting in the minimal configuration parameters."
   tags:
-    - named
+    - dns_bind_dlz
 
 - name: "[USAGE] - Check interfaces and presence of bind only interfaces config parameter. (1/3)."
   ansible.builtin.meta: end_play
   when: ( ansible_facts.interfaces | length < 3 ) and ( "lo" not in ansible_facts.interfaces | lower )
   tags:
-    - named
+    - dns_bind_dlz
 
 - name: "[USAGE] - Check interfaces and presence of bind only interfaces config parameter. (2/3)."
   ansible.builtin.meta: end_play
@@ -25,7 +25,7 @@
     - ansible_facts.interfaces | length >= 3
     - sambadc_bind_interfaces is not defined
   tags:
-    - named
+    - dns_bind_dlz
 
 - name: "[USAGE] - Check interfaces and presence of bind only interfaces config parameter. (3/3)."
   ansible.builtin.meta: end_play
@@ -33,13 +33,13 @@
     - ansible_facts.interfaces | length >= 3
     - sambadc_bind_interfaces | lower not in ansible_facts.interfaces | lower
   tags:
-    - named
+    - dns_bind_dlz
 
 - name: "[USAGE] - Check if inventory-hostname and host-hostname match."
   ansible.builtin.meta: end_play
   when: inventory_hostname | lower != ansible_hostname | lower
   tags:
-    - named
+    - dns_bind_dlz
 
 - name: "[USAGE] - Check if TLS-certificates are correctly configured."
   ansible.builtin.assert:

@@ -49,7 +49,6 @@
   changed_when: true
   vars:
     sdcdm: sambadc_workgroup
-#    sdcdm: "{{ sambadc_realm.split('.')[0] | upper }}"
   when: df_cmd.stdout is not search("--password")
   tags:
     - settings

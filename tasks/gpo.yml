@@ -88,8 +88,7 @@
     - gpo
 
 # samba-tool backup does not save the displayname attribute.
-# sambatool restore -for whatever reason - does require to provide a displayName.
-# I have opened a ticket to the samba-team.
+# sambatool restore - for whatever reason - does require to provide a displayName.
 - name: "[GPO] - Install configured Group Policies."
   ansible.builtin.command: >
     samba-tool gpo restore "{{ item | basename | split('.') | first }}" "/tmp/{{ item | basename }}"

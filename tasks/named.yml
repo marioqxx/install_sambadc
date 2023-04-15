@@ -9,13 +9,13 @@
     ipv4ptr: "{{ iface.ipv4.network | ansible.utils.ipaddr('revdns') | replace('0.', '') }}"
     ipv6ptr: "{{ iface.ipv6[0].address | ansible.utils.ipaddr('revdns') }}"
   tags:
-    - named
+    - dns_bind_dlz
 
 - name: "[NAMED] - Extract Host Subnet-Address."
   ansible.builtin.set_fact:
     ipv4host: "{{ iface.ipv4.address | replace(ipv4net, '') }}"
   tags:
-    - named
+    - dns_bind_dlz
 
 # Source: https://bugzilla.samba.org/show_bug.cgi?id=14535
 # Fixes an issue that existed in pre 4.15 versions.
@@ -29,7 +29,7 @@
     remote_src: true
   when: sambadc_version.stdout is not match("14")
   tags:
-    - named
+    - dns_bind_dlz
 
 # Do all the changes to /etc/bind/named.conf.options
 - name: "[NAMED] - Modify named.conf.options"
@@ -42,7 +42,7 @@
            tkey-gssapi-keytab "{{ BINDDNS_DIR }}/dns.keytab";
     insertafter: '// };'
   tags:
-    - named
+    - dns_bind_dlz
 
 - name: "[NAMED] - Change DNSSEC to \"no\""
   ansible.builtin.replace:
@@ -50,7 +50,7 @@
     regexp: 'dnssec-validation auto;'
     replace: 'dnssec-validation no;'
   tags:
-    - named
+    - dns_bind_dlz
 
 # Do all the changes to /etc/bind/named.conf.local
 - name: "[NAMED] - Modify named.conf.local"
@@ -59,7 +59,7 @@
     block: |
            include "{{ BINDDNS_DIR }}/named.conf";
   tags:
-    - named
+    - dns_bind_dlz
 
 # Create Reverse zone and associated entry for Reverse resolution on host.
 - name: "[NAMED] - Add a Reversezone."
@@ -69,14 +69,14 @@
   failed_when: false
   register: df_cmd
   tags:
-    - named
+    - dns_bind_dlz
 
 - name: "[NAMED] - Add the host to the Reversezone."
   ansible.builtin.command: >
     samba-tool dns add localhost {{ ipv4ptr }} {{ ipv4host }} PTR {{ sambadc_fqdn }} -U Administrator --password={{ sambadc_admin_password }}
   changed_when: true
   tags:
-    - named
+    - dns_bind_dlz
 
 # Start checking filesystem-permissions for bind9
 - name: "[NAMED] - Set file permissions for the bind-files that Samba created during provisioning (bugfix 14535)."
@@ -87,7 +87,7 @@
     group: bind
     mode: "{{ item.mode }}"
   tags:
-    - named
+    - dns_bind_dlz
   loop:
     - { path: "{{ BINDDNS_DIR }}", state: "directory", mode: "0770" }
     - { path: "{{ BINDDNS_DIR }}/dns", state: "directory", mode: "0770" }
@@ -102,7 +102,7 @@
     patterns: "*"
   register: db_files
   tags:
-    - named
+    - dns_bind_dlz
 
 - name: "[NAMED] - Checking permission for BINDDNS_DIR/dns/sam.ldb.d/*"
   ansible.builtin.file:
@@ -112,8 +112,14 @@
     group: bind
     mode: "0660"
   tags:
-    - named
+    - dns_bind_dlz
   loop: "{{ db_files.files }}"
+
+- name: "[NAMED] - Checking configuration file."
+  ansible.builtin.command: named-checkconf
+  changed_when: false
+  tags:
+    - dns_bind_dlz
 
 # Restart bind9 after setting up the domain
 - name: "[NAMED] - Restart bind9 Daemon."
@@ -121,4 +127,4 @@
     name: named
     state: restarted
   tags:
-    - named
+    - dns_bind_dlz

@@ -27,6 +27,7 @@
 
 - name: "[CHECK] - DNS-Loockup A-Record of DC, returns IP-Address."
   ansible.builtin.command: host -t A "{{ sambadc_fqdn }}"
+  register: df_cmd
   changed_when: false
   tags:
     - check
@@ -41,6 +42,18 @@
 - name: "[CHECK] - DNS-Loockup checking configured forward DNS-server."
   ansible.builtin.command: host -t A "{{ sambadc_check_forwardzone_host }}"
   failed_when: false
+  changed_when: false
+  tags:
+    - check
+
+- name: "[CHECK] - Check presence of DNS-tool nsupdate command from dnsutils."
+  ansible.builtin.command: nsupdate -V
+  changed_when: false
+  tags:
+    - check
+
+- name: "[CHECK] - Check DNS-update functionality."
+  ansible.builtin.command: samba_dnsupdate --all-names
   changed_when: false
   tags:
     - check
@@ -105,7 +118,7 @@
       changed_when: false
 
 # Needed for pre 4.15 Version of samba.
-- name: "[CHECK] - Test connection via username/password (smbclient without --password commandline option."
+- name: "[CHECK] - Test connection via username/password (smbclient without --password commandline option)."
   when: df_cmd.stdout is not search("--password")
   tags:
     - check
@@ -126,6 +139,69 @@
         executable: /bin/bash
       changed_when: false
 
-# Check SSL access to LDAP if configured.
-# - name: "[CHECK] - Test LDAP-access via SSL."
-#  ansible.builtin.command: openssl
+# Check SSL access to LDAP (if configured).
+- name: "[CHECK] - Check certificate verification and chain of trust."
+  tags:
+    - check
+  when:
+    - sambadc_tls_ca is defined
+  block:
+    - name: "[CHECK] - Connect via openssl s_client from localhost."
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo "Q" | openssl s_client -brief -CAfile "{{ PRIVATE_DIR }}"/tls/"{{ sambadc_tls_ca | basename }}" -connect localhost:636
+      args:
+        executable: /bin/bash
+      register: df_cmd
+      changed_when: false
+
+    - name: "[CHECK] - Check if Certificate chain of trust was OK."
+      ansible.builtin.assert:
+        that:
+          - df_cmd.stdout is not match("Verification: OK")
+        msg: "Certificate verification failed."
+
+    - name: "[CHECK] - Connect via openssl s_client from localhost and use of system installed trusted root-CA."
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo "Q" | openssl s_client -brief -connect localhost:636
+      args:
+        executable: /bin/bash
+      register: df_cmd
+      changed_when: false
+      when: sambadc_tls_ca_install_system
+
+    - name: "[CHECK] - Check if Certificate chain of trust was OK."
+      ansible.builtin.assert:
+        that:
+          - df_cmd.stdout is not match("Verification: OK")
+        msg: "Certificate verification failed."
+      when: sambadc_tls_ca_install_system
+
+    - name: "[CHECK] - Connect via openssl s_client from control-host."
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo "Q" | openssl s_client -brief -CAfile {{ sambadc_tls_ca }} -connect {{ sambadc_fqdn }}:636
+      delegate_to: localhost
+      become: false
+      args:
+        executable: /bin/bash
+      register: df_cmd
+      changed_when: false
+
+    - name: "[CHECK] - Check if Certificate chain of trust was OK."
+      ansible.builtin.assert:
+        that:
+          - df_cmd.stdout is not match("Verification: OK")
+        msg: "Certificate verification failed."
+
+    # If this check fails, then call ldapsearch with -d 1 and check the certificate.
+    # The Common-name and the canonicalized hostname potentially do not match.
+    - name: "[CHECK] - Make an ldapsearch query for user-names."
+      ansible.builtin.command:
+        ldapsearch -H ldaps://localhost:636 -b "cn=Users,{{ sambadc_ldap }}"
+                   -D "cn=Administrator,cn=Users,{{ sambadc_ldap }}"
+                   -w "{{ sambadc_admin_password }}"
+                   -s sub "(objectClass=group)"
+      register: df_cmd
+      changed_when: false

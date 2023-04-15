@@ -55,7 +55,7 @@
     - bind9
     - dnsutils
   tags:
-    - named
+    - dns_bind_dlz
     - install
 
 - name: "[SETUP-ENV] - Packages Autoclean and Autoremove."
@@ -72,7 +72,7 @@
   register: sambadc_version
   changed_when: false
   tags:
-    - named
+    - dns_bind_dlz
 
 - name: "[SETUP-ENV] - Update libraries."
   ansible.builtin.command: ldconfig
@@ -84,14 +84,14 @@
     iface: "{{ ansible_facts[sambadc_bind_interfaces] }}"
   when: sambadc_bind_interfaces is defined
   tags:
-    - named
+    - dns_bind_dlz
 
 - name: "[SETUP-ENV] - Get interface IP-addresses when only one interface is present."
   ansible.builtin.set_fact:
     iface: "{{ ansible_facts[ansible_facts.interfaces | reject('match', 'lo') | join] }}"
   when: sambadc_bind_interfaces is not defined
   tags:
-    - named
+    - dns_bind_dlz
 
 # Read the various directories Samba uses.
 - name: "[SETUP-ENV] - Obtain samba-files and/or directories to delete."
@@ -100,7 +100,8 @@
   changed_when: false
   tags:
     - cleanup
-    - named
+    - dns_bind_dlz
+    - check
 
 - name: "[SETUP-ENV] - Create Variables and set to associated directory."
   ansible.builtin.set_fact:
@@ -125,7 +126,8 @@
     - BINDDNS_DIR
   tags:
     - cleanup
-    - named
+    - dns_bind_dlz
+    - check
 
 # Directories returned form call smbd -b. Double-check presence of mandatory, because used, directories. Probably not needed.
 - name: "[SETUP-ENV] - Check samba returned required directories."
@@ -137,7 +139,8 @@
       - STATEDIR is defined
     msg: "smbd -b did not return required directories. Internal error."
   tags:
-    - named
+    - dns_bind_dlz
+    - check
 
 # Early binding to IPv6 during DHCP-address assignment, which may not be complete
 # at startup when "samba-ad-dc"-service starts.
@@ -164,32 +167,17 @@
     - { file: "{{ sambadc_tls_key }}", mode: "0600" }
     - { file: "{{ sambadc_tls_ca }}", mode: "0644" }
 
-- name: "[SETUP-ENV] - Copy Intermed CA Certificate file to host and concatenate with Certificate-file."
+- name: "[SETUP-ENV] - Concatenate Intermed CA Certificate file with Certificate file and copy to host."
+  ansible.builtin.template:
+    src: templates/concatenate.j2
+    dest: "{{ PRIVATE_DIR }}/tls/{{ fname.split('.')[:-1] | join('.') }}.pem"
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    fname: "{{ sambadc_tls_cert | basename }}"
+    input_files: ["{{ sambadc_tls_cert }}", "{{ sambadc_tls_intermed }}"]
   when: sambadc_tls_intermed is defined
-  block:
-    - name: "[SETUP-ENV] - Copy Intermed CA Certificate file to host."
-      ansible.builtin.copy:
-        src: "{{ sambadc_tls_intermed }}"
-        dest: "{{ PRIVATE_DIR }}/tls/"
-        owner: root
-        group: root
-        mode: "0644"
-
-    - name: "[SETUP-ENV] - Concatenate intermed certificate file with certificate file for Samba."
-      ansible.builtin.template:
-        src: templates/concatenate.j2
-        dest: "{{ PRIVATE_DIR }}/tls/{{ fname.split('.')[:-1] | join('.') }}.pem"
-        owner: root
-        group: root
-        mode: "0644"
-      vars:
-        fname: "{{ sambadc_tls_cert | basename }}"
-        input_files: ["{{ sambadc_tls_cert }}", "{{ sambadc_tls_intermed }}"]
-
-    - name: "[SETUP-ENV] - Delete Intermed CA Certificate file from host."
-      ansible.builtin.file:
-        path: "{{ PRIVATE_DIR }}/tls/{{ sambadc_tls_intermed | basename }}"
-        state: absent
 
 - name: "[SETUP-ENV] - Install Root-CA certificate in system wide trusted CA-store."
   when: sambadc_tls_ca_install_system

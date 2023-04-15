@@ -6,7 +6,7 @@
 - name: "[MAIN] - Sanity check variables given for minimum configuration."
   ansible.builtin.include_tasks: usage.yml
   tags:
-    - named
+    - dns_bind_dlz
 
 # Install the packages needed for a samba DC and if configured from additional repository.
 - name: "[MAIN] - Install the required packages and make other required/useful system-settings."
@@ -14,13 +14,14 @@
   tags:
     - limits
     - cleanup
-    - named
+    - dns_bind_dlz
     - install
+    - check
 
 - name: "[MAIN] - Sanity check variables given for extended configuration."
   ansible.builtin.include_tasks: usage_post.yml
   tags:
-    - named
+    - dns_bind_dlz
 
 - name: "[MAIN] - Cleanup any existing config, DB and log-files of an existing DC"
   ansible.builtin.include_tasks: cleanup.yml
@@ -86,7 +87,7 @@
   ansible.builtin.include_tasks: named.yml
   when: sambadc_dns in [ "BIND9_FLATIFLE", "BIND9_DLZ" ]
   tags:
-    - named
+    - dns_bind_dlz
 
 - name: "[MAIN] - Write the smb.conf-file with the configured shares included"
   ansible.builtin.template:

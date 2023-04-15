@@ -37,4 +37,4 @@
   ansible.builtin.meta: end_play
   when: iface.ipv4.prefix not in [ '8', '16', '24' ]
   tags:
-    - named
+    - dns_bind_dlz

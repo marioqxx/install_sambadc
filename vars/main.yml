@@ -7,6 +7,7 @@
 dns_address: "{{ sambadc_forwarder }}"
 sambadc_fqdn: "{{ ansible_hostname }}.{{ sambadc_realm }}"
 sambadc_workgroup: "{{ sambadc_realm.split('.')[0] | upper }}"
+sambadc_ldap: "{{ 'dc=' + sambadc_realm.split('.') | join(',dc=') }}"
 
 # Ansible bug. Does not work. Reverting to original quirky version
 # of settings.yml.
