@@ -195,13 +195,31 @@
           - df_cmd.stdout is not match("Verification: OK")
         msg: "Certificate verification failed."
 
+    # Check LDAP configuration (TLS).
     # If this check fails, then call ldapsearch with -d 1 and check the certificate.
     # The Common-name and the canonicalized hostname potentially do not match.
-    - name: "[CHECK] - Make an ldapsearch query for user-names."
+    - name: "[CHECK] - Make an ldapsearch query for group-names using TLS (1/2)."
       ansible.builtin.command:
         ldapsearch -H ldaps://localhost:636 -b "cn=Users,{{ sambadc_ldap }}"
                    -D "cn=Administrator,cn=Users,{{ sambadc_ldap }}"
                    -w "{{ sambadc_admin_password }}"
                    -s sub "(objectClass=group)"
-      register: df_cmd
       changed_when: false
+
+    - name: "[CHECK] - Make an ldapsearch query for group-names using TLS and ldap.conf config (2/2)."
+      ansible.builtin.command:
+        ldapsearch -D "cn=Administrator,cn=Users,{{ sambadc_ldap }}"
+                   -w "{{ sambadc_admin_password }}"
+                   -s sub "(objectClass=group)"
+      changed_when: false
+
+# Check LDAP configuration (non-TLS).
+- name: "[CHECK] - Make an (unsecure) ldapsearch query for group-names, using ldap.conf."
+  ansible.builtin.command:
+    ldapsearch -D "cn=Administrator,cn=Users,{{ sambadc_ldap }}"
+               -w "{{ sambadc_admin_password }}"
+               -s sub "(objectClass=group)"
+  changed_when: false
+  when: sambadc_tls_ca is mot defined
+  tags:
+    - check

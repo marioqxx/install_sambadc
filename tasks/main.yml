@@ -12,7 +12,6 @@
 - name: "[MAIN] - Install the required packages and make other required/useful system-settings."
   ansible.builtin.include_tasks: setup_env.yml
   tags:
-    - limits
     - cleanup
     - dns_bind_dlz
     - install

@@ -1,0 +1,26 @@
+#jinja2: trim_blocks:True, lstrip_blocks:True
+# ANSIBLE MANAGED FILE #
+#
+# See ldap.conf(5) for details.
+# This file should be world readable but not world writeable.
+
+BASE	cn=Users,{{ sambadc_ldap }}
+{% if sambadc_tls_ca is defined %}
+URI	ldaps://{{ sambadc_fqdn }}:636
+{% else %}
+URI	ldap://{{ sambadc_fqdn }}:389
+{% endif %}
+
+# TLS certificates (needed for GnuTLS)
+{% if sambadc_tls_ca is defined %}
+TLS_REQCERT	demand
+{% if sambadc_tls_ca_install_system  %}
+TLS_CACERT	{{ sambadc_tls_install_dir }}/{{ sambadc_tls_ca | basename }}
+{% else %}
+TLS_CACERT	{{ PRIVATE_DIR }}/tls/{{ sambadc_tls_ca | basename }}
+{% endif %}
+{% else %}
+# CHANGE TO TLS, THIS CONFIGURATION IS INSECURE AND/OR BLOCK PORT 389
+# WITH THE FIREWALL.
+TLS_REQCERT	never
+{% endif %}

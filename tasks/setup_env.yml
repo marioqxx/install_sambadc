@@ -198,6 +198,14 @@
       ansible.builtin.command: dpkg-reconfigure -u -p critical ca-certificates
       changed_when: true
 
+- name: "[SETUP-ENV] - Write ldap.conf-file with settings. If TLS is configured (strongly recommended) also TLS-settings."
+  ansible.builtin.template:
+    src: templates/ldap.conf.j2
+    dest: "{{ sambadc_ldap_conf_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+
 # Set limits.
 # ulimit -n 65536 or unlimited
 # https://serverfault.com/questions/325608/samba-stuck-at-maximum-of-1024-open-files
