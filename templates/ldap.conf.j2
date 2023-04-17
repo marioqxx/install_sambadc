@@ -8,6 +8,8 @@ BASE	cn=Users,{{ sambadc_ldap }}
 {% if sambadc_tls_ca is defined %}
 URI	ldaps://{{ sambadc_fqdn }}:636
 {% else %}
+# CHANGE TO TLS, THIS CONFIGURATION IS INSECURE AND/OR BLOCK PORT 389
+# WITH THE FIREWALL.
 URI	ldap://{{ sambadc_fqdn }}:389
 {% endif %}
 

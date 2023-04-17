@@ -4,20 +4,20 @@
 # sambadc_timezone shall contain the timezone
 # sambadc_timeservers shall contain a list of maps where key is "name" and the value
 # the time-server-name.
-- name: "[NTPD] - Set timezone"
+- name: "[NTPD] - Set timezone."
   ansible.builtin.command: timedatectl set-timezone "{{ sambadc_timezone }}"
   changed_when: true
 
-- name: "[NTPD] - Generate ntpd configuration for dc"
+- name: "[NTPD] - Generate ntpd configuration for DC."
   ansible.builtin.template:
-    src: templates/ntpd.conf.j2
-    dest: /etc/ntpd.conf
+    src: templates/ntp.conf.j2
+    dest: /etc/ntp.conf
     owner: "root"
     group: "ntp"
     mode: "0440"
     force: true
 
-- name: "{{ '[NTPD] Set permission for directory' + SAMBA_STATEDIR + '/ntp_signd' }}"
+- name: "{{ '[NTPD] Set permission for directory' + SAMBA_STATEDIR + '/ntp_signd .' }}"
   ansible.builtin.file:
     path: "{{ STATEDIR }}/ntp_signd"
     state: directory

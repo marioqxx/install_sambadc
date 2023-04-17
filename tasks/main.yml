@@ -22,7 +22,7 @@
   tags:
     - dns_bind_dlz
 
-- name: "[MAIN] - Cleanup any existing config, DB and log-files of an existing DC"
+- name: "[MAIN] - Cleanup any existing config, DB and log-files of an existing DC."
   ansible.builtin.include_tasks: cleanup.yml
   tags:
     - cleanup
@@ -88,7 +88,7 @@
   tags:
     - dns_bind_dlz
 
-- name: "[MAIN] - Write the smb.conf-file with the configured shares included"
+- name: "[MAIN] - Write the smb.conf-file with the configured shares included."
   ansible.builtin.template:
     src: templates/smb.conf.j2
     dest: "{{ CONFIGFILE }}"

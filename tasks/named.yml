@@ -32,7 +32,7 @@
     - dns_bind_dlz
 
 # Do all the changes to /etc/bind/named.conf.options
-- name: "[NAMED] - Modify named.conf.options"
+- name: "[NAMED] - Modify named.conf.options."
   ansible.builtin.blockinfile:
     path: /etc/bind/named.conf.options
     block: |
@@ -44,7 +44,7 @@
   tags:
     - dns_bind_dlz
 
-- name: "[NAMED] - Change DNSSEC to \"no\""
+- name: "[NAMED] - Change DNSSEC to \"no\"."
   ansible.builtin.replace:
     path: /etc/bind/named.conf.options
     regexp: 'dnssec-validation auto;'
@@ -53,7 +53,7 @@
     - dns_bind_dlz
 
 # Do all the changes to /etc/bind/named.conf.local
-- name: "[NAMED] - Modify named.conf.local"
+- name: "[NAMED] - Modify named.conf.local."
   ansible.builtin.blockinfile:
     path: /etc/bind/named.conf.local
     block: |
@@ -104,7 +104,7 @@
   tags:
     - dns_bind_dlz
 
-- name: "[NAMED] - Checking permission for BINDDNS_DIR/dns/sam.ldb.d/*"
+- name: "[NAMED] - Checking permission for BINDDNS_DIR/dns/sam.ldb.d/* ."
   ansible.builtin.file:
     path: "{{ item.path }}"
     state: file

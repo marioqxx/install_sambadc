@@ -1,6 +1,6 @@
 ---
 # Prepare the system by installing required packages and make certain system-wide settings.
-- name: "[SETUP-ENV] - Add backports repository"
+- name: "[SETUP-ENV] - Add backports repository."
   ansible.builtin.apt_repository:
     repo: 'deb http://deb.debian.org/debian bullseye-backports main'
     state: present
@@ -157,7 +157,7 @@
 - name: "[SETUP-ENV] - Copy Certificate files to host."
   ansible.builtin.copy:
     src: "{{ item.file }}"
-    dest: "{{ PRIVATE_DIR }}/tls"
+    dest: "{{ PRIVATE_DIR }}/tls/"
     owner: root
     group: root
     mode: "{{ item.mode }}"
@@ -198,7 +198,7 @@
       ansible.builtin.command: dpkg-reconfigure -u -p critical ca-certificates
       changed_when: true
 
-- name: "[SETUP-ENV] - Write ldap.conf-file with settings. If TLS is configured (strongly recommended) also TLS-settings."
+- name: "[SETUP-ENV] - Write ldap.conf-file with settings. Configuring TLS is strongly recommended."
   ansible.builtin.template:
     src: templates/ldap.conf.j2
     dest: "{{ sambadc_ldap_conf_file }}"

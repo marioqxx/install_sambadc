@@ -10,6 +10,10 @@ sambadc_admin_password: 'PassW0rD'
 # sambadc_type: new or join
 sambadc_type: "new"
 
+# ntp-Daemon settings.
+sambadc_ntp_driftfile: "/var/lib/ntp/ntp.drift"
+sambadc_ntp_log: "/var/log/ntp"
+
 # TLS
 sambadc_tls_ca_install_system: false
 sambadc_tls_install_dir: "/usr/local/share/ca-certificates"

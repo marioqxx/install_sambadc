@@ -1,25 +1,25 @@
 ---
 # After Provisioning, perform checks if the DC is up and running.
 # Perform checks as to DNS resolution.
-- name: "[CHECK] - DNS-Loockup DC-services: ldap, TCP"
+- name: "[CHECK] - DNS-Loockup DC-services: ldap, TCP."
   ansible.builtin.command: testparm -s /etc/samba/smb.conf
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - DNS-Loockup DC-services: ldap, TCP"
+- name: "[CHECK] - DNS-Loockup DC-services: ldap, TCP."
   ansible.builtin.command: host -t SRV "_ldap._tcp.{{ sambadc_realm }}"
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - DNS-Loockup DC-services: kerberos, UDP"
+- name: "[CHECK] - DNS-Loockup DC-services: kerberos, UDP."
   ansible.builtin.command: host -t SRV "_kerberos._udp.{{ sambadc_realm }}"
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - DNS-Loockup DC-services: gc, TCP"
+- name: "[CHECK] - DNS-Loockup DC-services: gc, TCP."
   ansible.builtin.command: host -t SRV "_gc._tcp.{{ sambadc_realm }}"
   changed_when: false
   tags:
@@ -220,6 +220,6 @@
                -w "{{ sambadc_admin_password }}"
                -s sub "(objectClass=group)"
   changed_when: false
-  when: sambadc_tls_ca is mot defined
+  when: sambadc_tls_ca is not defined
   tags:
     - check

@@ -73,7 +73,7 @@
             ca_file: "{{ playbook_dir }}/{{ sambadc_tls_ca }}"
             crt_file: "{{ playbook_dir }}/{{ sambadc_tls_intermed }}"
 
-        - name: "[USAGE] - Check Certififcate chain part: Intermed CA <-> Certificate ."
+        - name: "[USAGE] - Check Certififcate chain part: Intermed CA <-> Certificate."
           ansible.builtin.command: openssl verify -partial_chain -CAfile "{{ ca_file }}" "{{ crt_file }}"
           delegate_to: localhost
           become: false

@@ -55,7 +55,6 @@ This role has the following tags defined:
  - cleanup
  - install
  - settings
- - limits
  - shares
  - check
 

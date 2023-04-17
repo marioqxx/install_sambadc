@@ -6,7 +6,7 @@
   tags:
     - settings
 
-- name: "[SETTINGS] - Disable password history at the domain level"
+- name: "[SETTINGS] - Disable password history at the domain level."
   ansible.builtin.command: samba-tool domain passwordsettings set --"{{ item.setting }}"="{{ item.value }}"
   loop:
     - { setting: "complexity", value: "off" }
