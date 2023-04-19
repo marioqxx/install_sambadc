@@ -1,5 +1,5 @@
 ---
-# Copy the GPO-Template file form the control host to the remote host. Note that the
+# Copy the GPO-Template file from the control host to the remote host. Note that the
 # GPO-template file shall be a packed file and shall include the ADMX-files in the root
 # and the ADML-files in subdirectories, such as: "de-DE" or "en-US"
 - name: "[GPO] - Create Temporary Directories to download templates to."
@@ -21,13 +21,12 @@
     owner: root
     group: root
     mode: "0664"
-#      creates: "/tmp/{{ item | basename }}" # Does not work, does not create sub-directory.
   loop: "{{ sambadc_gpo_template }}"
   when: sambadc_gpo_template is defined
   tags:
     - gpo
 
-# Install the GPO-tools into samba-sysvol with the aid of samba-tool.
+# Install the GPO-templates into samba-sysvol with the aid of samba-tool.
 # Source: https://wiki.samba.org/index.php/Group_Policy
 # First install the ADMX templates that come with samba.
 - name: "[GPO] - Install ADMX-Templates that come with samba first."
@@ -39,7 +38,7 @@
 
 - name: "[GPO] - Install configured GPO-Templates."
   ansible.builtin.command: >
-    samba-tool gpo admxload -U Administrator -H "{{ sambadc_fqdn }}"
+    samba-tool gpo admxload -H "{{ sambadc_fqdn }}" -U Administrator
       --password="{{ sambadc_admin_password }}"
       --admx-dir="/tmp/{{ item | basename }}"
   changed_when: true
@@ -87,15 +86,18 @@
   tags:
     - gpo
 
-# samba-tool backup does not save the displayname attribute.
-# sambatool restore - for whatever reason - does require to provide a displayName.
+# samba-tool backup does not save the displayname attribute, this name is extracted
+# from the filename.
+# sambatool restore - for whatever reason - does require to provide a displayName, which
+# is here used as a workaround.
 - name: "[GPO] - Install configured Group Policies."
   ansible.builtin.command: >
     samba-tool gpo restore "{{ item | basename | split('.') | first }}" "/tmp/{{ item | basename }}"
-      -U Administrator -H "{{ sambadc_fqdn }}"
+      -H "{{ sambadc_fqdn }}" -U Administrator
       --password="{{ sambadc_admin_password }}"
-  changed_when: true
   loop: "{{ sambadc_gpo }}"
+  changed_when: true
+  failed_when: false
   when: sambadc_gpo is defined
   tags:
     - gpo
@@ -106,5 +108,38 @@
     state: absent
   loop: "{{ sambadc_gpo }}"
   when: sambadc_gpo is defined
+  tags:
+    - gpo
+
+# Activate the GPO's by linking to them. First, obtain the UUID to
+# displayname-mapping for each GPO.
+- name: "[GPO] - Obtain GPO displayname to UUID-mapping (1/2)."
+  ansible.builtin.command: >
+    samba-tool gpo listall
+#      -H "{{ sambadc_fqdn }}" -U Administrator
+#      --password="{{ sambadc_admin_password }}"
+  changed_when: false
+  register: df_cmd
+  when: sambadc_gpo_activate is defined
+  tags:
+    - gpo
+
+- name: "[GPO] - Obtain GPO displayname to UUID-mapping (2/2)."
+  ansible.builtin.set_fact:
+    keynames: "{{ df_cmd.stdout_lines | select('search', 'display name') | reverse | map('regex_replace', '.*:', '') | map('trim') }}"
+    values: "{{ df_cmd.stdout_lines | select('search', 'GPO') | reverse | map('regex_replace', '.*:', '') | map('trim') }}"
+  when: sambadc_gpo_activate is defined
+  tags:
+    - gpo
+
+- name: "[GPO] - Activate configured Group Policies."
+  ansible.builtin.command: >
+    samba-tool gpo setlink "{{ sambadc_ldap }}" "{{ gpo_mapping[item] }}"
+      -U Administrator --password="{{ sambadc_admin_password }}"
+  changed_when: true
+  loop: "{{ sambadc_gpo_activate }}"
+  when: sambadc_gpo_activate is defined
+  vars:
+    gpo_mapping: "{{ dict(keynames | zip(values)) }}"
   tags:
     - gpo

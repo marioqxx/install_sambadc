@@ -18,7 +18,7 @@
   tags:
     - settings
 
-# Set the DiskOperatorPrivilege for Administrator
+# Set the SeDiskOperatorPrivilege for Administrator
 - name: "[SETTINGS] - Check if the net command supports password command-line option."
   ansible.builtin.command: net help
   register: df_cmd
@@ -27,7 +27,7 @@
   tags:
     - settings
 
-- name: "[SETTINGS] - Set DiskOperatorPrivilege for Administrator."
+- name: "[SETTINGS] - Set SeDiskOperatorPrivilege for Administrator."
   ansible.builtin.command: >
     net rpc rights grant "{{ sambadc_workgroup + '\Domain Admins' }}"
       SeDiskOperatorPrivilege
@@ -40,7 +40,7 @@
 
 # This complicated way to express user and password is reuiqred due to ansible-bugs
 # handling "\" and in order not to exceed line-length limits.
-- name: "[SETTINGS] - Set DiskOperatorPrivilege for Administrator."
+- name: "[SETTINGS] - Set SeDiskOperatorPrivilege for Administrator."
   ansible.builtin.shell: |
     set -o pipefail
     echo {{ sambadc_admin_password }} | net rpc rights grant "{{ sdcdm + '\Domain Admins' }}" SeDiskOperatorPrivilege --user "{{ sdcdm + '\Administrator' }}"

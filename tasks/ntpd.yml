@@ -4,6 +4,11 @@
 # sambadc_timezone shall contain the timezone
 # sambadc_timeservers shall contain a list of maps where key is "name" and the value
 # the time-server-name.
+#
+# NOTE: In the log of ntp a message will show up, which appears to indicate an issue.
+# It may show:
+# MS-SNTP signd operations currently block ntpd degrading service to all clients
+# This is however normal, see: https://groups.google.com/g/linux.samba/c/KdJuhfpMUkM
 - name: "[NTPD] - Set timezone."
   ansible.builtin.command: timedatectl set-timezone "{{ sambadc_timezone }}"
   changed_when: true
