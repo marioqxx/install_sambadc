@@ -97,8 +97,10 @@
     - name: "[USAGE] - Check Certififcate Common Name matches host-FQDN (2/2)."
       ansible.builtin.assert:
         that:
-          - df_cmd.stdout | regex_match('CN = (.+)', '\\1') | first == sambadc_fqdn
-        fail_msg: "The certificate common name does not match the FQDN of the host."
+          - crt_common_name == sambadc_fqdn
+        fail_msg: "The certificate common name ({{ crt_common_name }}) does not match the FQDN of the host: {{ sambadc_fqdn }}"
       delegate_to: localhost
       become: false
       changed_when: false
+      vars:
+        crt_common_name: "{{ df_cmd.stdout | regex_search('CN = ([a-zA-Z0-9\\.]+)', '\\1') | first }}"
