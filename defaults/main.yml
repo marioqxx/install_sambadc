@@ -13,6 +13,10 @@ sambadc_type: "new"
 # ntp-Daemon settings.
 sambadc_ntp_driftfile: "/var/lib/ntp/ntp.drift"
 sambadc_ntp_log: "/var/log/ntp"
+sambadc_ntp_conf_file: "/etc/ntpsec/ntp.conf"
+sambadc_ntp_group: "ntpsec"
+# sambadc_ntp_conf_file: "/etc/ntp.conf"
+# sambadc_ntp_group: "ntp"
 
 # TLS
 sambadc_tls_ca_install_system: false

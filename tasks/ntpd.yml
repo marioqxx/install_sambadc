@@ -16,9 +16,9 @@
 - name: "[NTPD] - Generate ntpd configuration for DC."
   ansible.builtin.template:
     src: templates/ntp.conf.j2
-    dest: /etc/ntp.conf
+    dest: "{{ sambadc_ntp_conf_file }}"
     owner: "root"
-    group: "ntp"
+    group: "{{ sambadc_ntp_group }}"
     mode: "0440"
     force: true
 
@@ -27,5 +27,5 @@
     path: "{{ STATEDIR }}/ntp_signd"
     state: directory
     owner: "root"
-    group: "ntp"
+    group: "{{ sambadc_ntp_group }}"
     mode: "0750"

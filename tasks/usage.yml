@@ -9,7 +9,7 @@
       - sambadc_admin_password is defined
       - sambadc_type | lower is in [ "new", "join" ]
       - sambadc_timezone is defined
-    msg: "There is an error setting in the minimal configuration parameters."
+    fail_msg: "There is an error setting in the minimal configuration parameters."
   tags:
     - dns_bind_dlz
 
@@ -47,7 +47,7 @@
       - sambadc_tls_ca is defined
       - sambadc_tls_cert is defined
       - sambadc_tls_key is defined
-    msg: "TLS-certificates are defined. This requires all three parameters sambadc_tls_ca, sambadc_tls_cert and sambadc_tls_key to be set."
+    fail_msg: "TLS-certificates are defined. This requires all three parameters sambadc_tls_ca, sambadc_tls_cert and sambadc_tls_key to be set."
   when: (sambadc_tls_ca is defined) or (sambadc_tls_cert is defined) or (samba_tls_key is defined)
 
 # Requires openssl install on control host.
@@ -55,11 +55,14 @@
   when: sambadc_tls_cert is defined
   block:
     - name: "[USAGE] - Check Certififcate chain, no intermed CA is defined."
-      ansible.builtin.command: openssl verify -purpose sslserver -CAfile "{{ sambadc_tls_ca }}" "{{ sambadc_tls_cert }}"
+      ansible.builtin.command: openssl verify -purpose sslserver -CAfile "{{ ca_file }}" "{{ crt_file }}"
       delegate_to: localhost
       become: false
       changed_when: false
       when: sambadc_tls_intermed is not defined
+      vars:
+        ca_file: "{{ playbook_dir }}/{{ sambadc_tls_ca }}"
+        crt_file: "{{ playbook_dir }}/{{ sambadc_tls_cert }}"
 
     - name: "[USAGE] - Check Certififcate chain, with intermed CA is defined."
       when: sambadc_tls_intermed is defined
@@ -81,3 +84,21 @@
           vars:
             ca_file: "{{ playbook_dir }}/{{ sambadc_tls_intermed }}"
             crt_file: "{{ playbook_dir }}/{{ sambadc_tls_cert }}"
+
+    - name: "[USAGE] - Check Certififcate Common Name matches host-FQDN (1/2)."
+      ansible.builtin.command: openssl x509 -in "{{ crt_file }}" -noout -subject
+      delegate_to: localhost
+      register: df_cmd
+      become: false
+      changed_when: false
+      vars:
+        crt_file: "{{ playbook_dir }}/{{ sambadc_tls_cert }}"
+
+    - name: "[USAGE] - Check Certififcate Common Name matches host-FQDN (2/2)."
+      ansible.builtin.assert:
+        that:
+          - df_cmd.stdout | regex_match('CN = (.+)', '\\1') | first == sambadc_fqdn
+        fail_msg: "The certificate common name does not match the FQDN of the host."
+      delegate_to: localhost
+      become: false
+      changed_when: false

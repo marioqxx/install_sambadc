@@ -103,7 +103,7 @@
   tags:
     - check
 
-# Commandline option --password for smbclient only available form 4.15 on.
+# Commandline option --password for smbclient only available from 4.15 on.
 - name: "[CHECK] - Test connection via username/password (smbclient with --password commandline option."
   when: df_cmd.stdout is search("--password")
   tags:

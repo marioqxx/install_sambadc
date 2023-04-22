@@ -59,7 +59,7 @@
 - name: "[MAIN] - Join the new Domain Controller to the existing Domain."
   ansible.builtin.command: >
     samba-tool domain join
-      {{ sambadc_realm | upper }} DC
+      "{{ sambadc_realm | upper }}" DC
       --dns-backend="{{ sambadc_dns }}"
       --realm="{{ sambadc_realm | upper }}"
       --username="{{ sambadc_realm.split('.')[0] | upper }}\\administrator"

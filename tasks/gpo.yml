@@ -132,6 +132,13 @@
   tags:
     - gpo
 
+# - name: "[GPO] - Activate configured Group Policies."
+#   ansible.builtin.debug:
+#     msg: "{{ dict(keynames | zip(values)) }}"
+#   when: sambadc_gpo_activate is defined
+#   tags:
+#     - gpo
+
 - name: "[GPO] - Activate configured Group Policies."
   ansible.builtin.command: >
     samba-tool gpo setlink "{{ sambadc_ldap }}" "{{ gpo_mapping[item] }}"
