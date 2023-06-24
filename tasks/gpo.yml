@@ -120,12 +120,6 @@
   tags:
     - gpo
 
-- name: "[GPO] - Debug"
-  ansible.builtin.debug:
-    var: df_cmd
-  tags:
-    - gpo
-
 - name: "[GPO] - Delete temporary GPO directory for samba-tool as tmp-directory."
   ansible.builtin.file:
     path: "/tmp/policies"
