@@ -1,0 +1,78 @@
+---
+# Create share premissions for Roaming-profile directory and home-directory.
+# The Roaming-profile directory for the user is automatically created upon first login of said user.
+# The home-directory is not created and must be created with the creation of the user.
+# In both cases, the parent-directory must have correct permissions.
+# The samba-wiki suggests to set them via Windows. Here an alternative way is gone, which
+# works even when the DC is also used as fileserver for those directories.
+- name: "[SHARES] - Create and set permissions for isHome and isRoaming type shares."
+  ansible.builtin.file:
+    path: item.value.path
+    owner: root
+    group: "Domain Admins"
+    mode: u=rwx,g=rwx,o=-
+    state: directory
+  tags:
+    - shares
+
+- name: "[SHARES] - Set isHome/isRoaming common share Permissions (User)."
+  ansible.builin.command: >
+    setfacl -m u:root:rwx,u:"Domain Admins":rwx,u:"NT Authority\System":rwx "{{ item.value.path }}"
+  tags:
+    - shares
+
+- name: "[SHARES] - Set isHome/isRoaming common share Permissions (Group)."
+  ansible.builin.command: >
+    setfacl -m g:users:rwx,g:"Domain Admins":rwx,g:"NT Authority\System":rwx "{{ item.value.path }}"
+  tags:
+    - shares
+
+- name: "[SHARES] - Set isHome/isRoaming common Default-share Permissions (User)."
+  ansible.builin.command: >
+    setfacl -m d:u::rwx,d:u:root:rwx,d:u:"Domain Admins":rwx "{{ item.value.path }}"
+  tags:
+    - shares
+
+- name: "[SHARES] - Set isHome/isRoaming common Default-share Permissions (Group)."
+  ansible.builin.command: >
+    setfacl -m d:g::-,d:g:"Domain Admins":rwx "{{ item.value.path }}"
+  tags:
+    - shares
+
+# Set the share-permissions for the share when configured as "isRoaming".
+- name: "[SHARES] - Create and set permissions for isRoaming type shares."
+  when:
+    - item.value.type in ["isRoaming"]
+  tags:
+    - shares
+  block:
+    - name: "[SHARES] - Set Roaming-share Permissions (User)."
+      ansible.builin.command: setfacl -m u:"NT Authority\System":rwx "{{ item.value.path }}"
+
+    - name: "[SHARES] - Set Roaming-share Permissions (Group)."
+      ansible.builin.command: setfacl -m g:"NT Authority\System":rwx "{{ item.value.path }}"
+
+    - name: "[SHARES] - Set Roaming-share Default-Permissions (User)."
+      ansible.builin.command: setfacl -m d:u:"NT Authority\System":rwx "{{ item.value.path }}"
+
+    - name: "[SHARES] - Set Roaming-share Default-Permissions (Group)."
+      ansible.builin.command: setfacl -m d:g:"NT Authority\System":rwx "{{ item.value.path }}"
+
+# Set the share-permissions for the share when configured as "isHome".
+- name: "[SHARES] - Create and set permissions for isHome type shares."
+  when:
+    - item.value.type in ["isHome"]
+  tags:
+    - shares
+  block:
+#    - name: "[SHARES] - Set Home-share Permissions (User)."
+#      ansible.builin.command: setfacl -m u:"NT Authority\System":rwx "{{ item.value.path }}"
+
+    - name: "[SHARES] - Set Home-share Permissions (Group)."
+      ansible.builin.command: setfacl -m g:users:rx "{{ item.value.path }}"
+
+#    - name: "[SHARES] - Set Home-share Default-Permissions (User)."
+#      ansible.builin.command: setfacl -m d:u:"NT Authority\System":rwx "{{ item.value.path }}"
+
+    - name: "[SHARES] - Set Home-share Default-Permissions (Group)."
+      ansible.builin.command: setfacl -m d:g:users:- "{{ item.value.path }}"

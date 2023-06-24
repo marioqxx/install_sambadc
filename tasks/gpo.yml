@@ -1,8 +1,20 @@
 ---
+# FIRST: INSTALL GPO-TEMPLATES
+#
+# Install the GPO-templates into samba-sysvol with the aid of samba-tool.
+# Source: https://wiki.samba.org/index.php/Group_Policy
+# First install the ADMX templates that come with samba.
+- name: "[GPO] - Install Samba ADMX-Templates that come with Samba first."
+  ansible.builtin.command: >
+    samba-tool gpo admxload -H "{{ sambadc_fqdn }}" -U Administrator --password="{{ sambadc_admin_password }}"
+  changed_when: true
+  tags:
+    - gpo
+
 # Copy the GPO-Template file from the control host to the remote host. Note that the
 # GPO-template file shall be a packed file and shall include the ADMX-files in the root
 # and the ADML-files in subdirectories, such as: "de-DE" or "en-US"
-- name: "[GPO] - Create Temporary Directories to download templates to."
+- name: "[GPO] - Create Temporary Directories for download of GPO-Templates."
   ansible.builtin.file:
     path: "/tmp/{{ item | basename }}"
     owner: root
@@ -14,7 +26,7 @@
   tags:
     - gpo
 
-- name: "[GPO] - Copy or Download Archive to Temporary Directory."
+- name: "[GPO] - Copy or Download GPO-Template Archive to Temporary Directory and unpack."
   ansible.builtin.unarchive:
     src: "{{ item }}"
     dest: "/tmp/{{ item | basename }}"
@@ -26,29 +38,20 @@
   tags:
     - gpo
 
-# Install the GPO-templates into samba-sysvol with the aid of samba-tool.
-# Source: https://wiki.samba.org/index.php/Group_Policy
-# First install the ADMX templates that come with samba.
-- name: "[GPO] - Install ADMX-Templates that come with samba first."
-  ansible.builtin.command: >
-    samba-tool gpo admxload -H "{{ sambadc_fqdn }}" -U Administrator --password="{{ sambadc_admin_password }}"
-  changed_when: true
-  tags:
-    - gpo
-
 - name: "[GPO] - Install configured GPO-Templates."
   ansible.builtin.command: >
     samba-tool gpo admxload -H "{{ sambadc_fqdn }}" -U Administrator
       --password="{{ sambadc_admin_password }}"
       --admx-dir="/tmp/{{ item | basename }}"
-  changed_when: true
+  changed_when: df_cmd.rc == 0
   loop: "{{ sambadc_gpo_template }}"
+  register: df_cmd
   when: sambadc_gpo_template is defined
   tags:
     - gpo
 
-# Delete the temporary files.
-- name: "[GPO] - Delete temporary files and directories."
+# Delete the temporary directories and included files.
+- name: "[GPO] - Delete temporary GPO-Template directories and included files."
   ansible.builtin.file:
     path: "/tmp/{{ item | basename }}"
     state: absent
@@ -57,6 +60,8 @@
   tags:
     - gpo
 
+# SECOND: INSTALL CONFIGURED GPO's
+#
 # Copy and Install configured Group Policies.
 # Retriev the group Group Policies via command: samba-tool gpo backup <gpo>
 # <gpo> can be obtained through samba-tool gpo listall
@@ -74,7 +79,7 @@
   tags:
     - gpo
 
-- name: "[GPO] - Copy or Download Archive copntaining the Group Policy to Temporary Directory."
+- name: "[GPO] - Copy or Download Archive containing the Group Policy to Temporary Directory."
   ansible.builtin.unarchive:
     src: "{{ item }}"
     dest: "/tmp/{{ item | basename }}"
@@ -90,19 +95,45 @@
 # from the filename.
 # sambatool restore - for whatever reason - does require to provide a displayName, which
 # is here used as a workaround.
+# Furthermore, samba-tool does not work without specified --tmpdir. To work around,
+# a temporary directory is created.
+- name: "[GPO] - Create temporary GPO directory for samba-tool as tmp-directory."
+  ansible.builtin.file:
+    path: "/tmp/policies"
+    owner: root
+    group: root
+    mode: "0664"
+    state: directory
+  tags:
+    - gpo
+
 - name: "[GPO] - Install configured Group Policies."
   ansible.builtin.command: >
     samba-tool gpo restore "{{ item | basename | split('.') | first }}" "/tmp/{{ item | basename }}"
-      -H "{{ sambadc_fqdn }}" -U Administrator
-      --password="{{ sambadc_admin_password }}"
+      -H "{{ sambadc_fqdn }}" -U Administrator --password="{{ sambadc_admin_password }}"
+      --tmpdir="/tmp/policies"
   loop: "{{ sambadc_gpo }}"
-  changed_when: true
-  failed_when: false
+  changed_when: df_cmd.stdout is search("created")
+  failed_when: df_cmd.stderr is not search("existing") and (df_cmd.rc != 0)
+  register: df_cmd
   when: sambadc_gpo is defined
   tags:
     - gpo
 
-- name: "[GPO] - Delete temporary files and directories."
+- name: "[GPO] - Debug"
+  ansible.builtin.debug:
+    var: df_cmd
+  tags:
+    - gpo
+
+- name: "[GPO] - Delete temporary GPO directory for samba-tool as tmp-directory."
+  ansible.builtin.file:
+    path: "/tmp/policies"
+    state: absent
+  tags:
+    - gpo
+
+- name: "[GPO] - Delete temporary GPO directories and included files."
   ansible.builtin.file:
     path: "/tmp/{{ item | basename }}"
     state: absent
@@ -111,13 +142,15 @@
   tags:
     - gpo
 
-# Activate the GPO's by linking to them. First, obtain the UUID to
+# THIRD: ACTIVATE CONFIGURED GPO's
+#
+# Activate the GPO's by linking to them in the object-tree. First, obtain the UUID to
 # displayname-mapping for each GPO.
+# If samba-tool is called with command-line option "-H", it returns an error.
+#      -H "{{ sambadc_fqdn }}" -U Administrator
 - name: "[GPO] - Obtain GPO displayname to UUID-mapping (1/2)."
   ansible.builtin.command: >
-    samba-tool gpo listall
-#      -H "{{ sambadc_fqdn }}" -U Administrator
-#      --password="{{ sambadc_admin_password }}"
+    samba-tool gpo listall -U Administrator --password="{{ sambadc_admin_password }}"
   changed_when: false
   register: df_cmd
   when: sambadc_gpo_activate is defined
@@ -132,19 +165,28 @@
   tags:
     - gpo
 
+# For debugging purposes only.
 # - name: "[GPO] - Activate configured Group Policies."
 #   ansible.builtin.debug:
 #     msg: "{{ dict(keynames | zip(values)) }}"
 #   when: sambadc_gpo_activate is defined
 #   tags:
 #     - gpo
+#
+# - name: "[GPO] - End"
+#   ansible.builtin.meta: end_play
+#   tags:
+#     - gpo
 
+# samba-tool fails when called witzh option -H.
 - name: "[GPO] - Activate configured Group Policies."
   ansible.builtin.command: >
     samba-tool gpo setlink "{{ sambadc_ldap }}" "{{ gpo_mapping[item] }}"
       -U Administrator --password="{{ sambadc_admin_password }}"
-  changed_when: true
+  changed_when: df_cmd.stdout is search("created")
+  failed_when: df_cmd.stderr is not search("already") and (df_cmd.rc != 0)
   loop: "{{ sambadc_gpo_activate }}"
+  register: df_cmd
   when: sambadc_gpo_activate is defined
   vars:
     gpo_mapping: "{{ dict(keynames | zip(values)) }}"

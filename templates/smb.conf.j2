@@ -49,9 +49,8 @@
 {% for share in sambadc_shares %}
 [{{ share["share"] }}]
 {% for key, value in share.items() %}
-    {% if key != 'share' %}
+    {% if key not in ['type', 'share'] %}
         {{ key }} = {{ value }}
     {% endif %}
   {% endfor %}
-
 {% endfor %}

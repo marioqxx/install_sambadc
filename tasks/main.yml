@@ -16,6 +16,7 @@
     - dns_bind_dlz
     - install
     - check
+    - shares
 
 - name: "[MAIN] - Sanity check variables given for extended configuration."
   ansible.builtin.include_tasks: usage_post.yml
@@ -100,10 +101,22 @@
   tags:
     - shares
 
+- name: "[MAIN] - Write the smb.conf-file with the configured shares included."
+  ansible.builtin.include_tasks: shares.yml
+  when:
+    - item.type is defined and item.type in ['isHome', 'isRoaming']
+    - sambadc_shares is defined
+  loop: "{{ sambadc_shares }}"
+  tags:
+    - shares
+
+# Now its time to start the Domain-controller.
 - name: "[MAIN] - (Re-)Start the Domain Controller."
   ansible.builtin.service:
     name: "samba-ad-dc"
     state: restarted
+  tags:
+    - shares
 
 # Setup the Network-time Protocol daemon, which will be used by the clients for time-
 # synchronization with signed messages.
@@ -115,7 +128,6 @@
     name: "ntp"
     state: restarted
 
-# Now its time to start the Domain-controller.
 - name: "[MAIN] - set IP-address for local name resolution - Post-Provision."
   ansible.builtin.set_fact:
     dns_address: "127.0.0.1"

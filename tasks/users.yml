@@ -9,7 +9,7 @@
 
 - name: "[USERS] - Create Users."
   ansible.builtin.command: >
-    samba-tool user create "{{ item.username }}" "{{ item.password }}"
+    samba-tool user create "{{ item.username }}" "{{ item.password }}" --use-username-as-cn
     --given-name="{{ item.given_name | default('\"\"') }}"
     --surname="{{ item.surname }}"
     --mail-address="{{ item.email | default('\"\"') }}"
@@ -21,9 +21,53 @@
     - (item.surname is string) and (item.surname | length > 0)
     - item.username not in domain_users.stdout_lines
   loop: "{{ sambadc_users | default({}) }}"
+  register: df_cmd
   changed_when: true
   tags:
     - settings
+
+- name: "[USERS] - Create Users Home-directory."
+  ansible.builtin.file:
+    path: "{{ item.create_home_path }}"
+    owner: "{{ item.username }}"
+    group: "Domain Users"
+    mode: u=rwx,g=-,o=-
+    state: directory
+  when: (item.create_home_path is string) and (item.create_home_path | length > 0)
+  loop: "{{ sambadc_users | default({}) }}"
+  tags:
+    - settings
+
+- name: "[USERS] - Modify the Permission (Mask) of the created Users Home-directory."
+  ansible.builtin.command: setfacl -m m::rwx "{{ item.create_home_path }}"
+  when: (item.create_home_path is string) and (item.create_home_path | length > 0)
+  loop: "{{ sambadc_users | default({}) }}"
+  changed_when: true
+  tags:
+    - settings
+
+# The command samba-tool user add does not support the displayName-attribute.
+- name: "[USERS] - For created Users add attribute displayname if configured."
+  ansible.builtin.command:
+    cmd: ldapmodify -D "cn=Administrator,cn=Users,{{ sambadc_ldap }}" -w "{{ sambadc_admin_password }}"
+    stdin: |
+      dn: cn={{ item.username }},cn=Users,{{ sambadc_ldap }}
+      changetype: modify
+      replace: displayName
+      displayName: {{ item.displayName }}
+  when:
+    - (item.displayName is string) and (item.displayName | length > 0)
+  changed_when: df_cmd.stdout is match("modifying entry")
+  loop: "{{ sambadc_users | default({}) }}"
+  register: df_cmd
+  tags:
+    - settings
+
+# - name: "[USERS] - Debug."
+#  ansible.builtin.debug:
+#    var: df_cmd
+#  tags:
+#    - settings
 
 - name: "[USERS] - Re-Obtaining existing Users."
   ansible.builtin.command: samba-tool user list

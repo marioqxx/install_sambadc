@@ -17,6 +17,13 @@
   tags:
     - dns_bind_dlz
 
+# - name: "[NAMED] - Switch DNS-backend to BIND9_DLZ."
+#   ansible.builtin.command: samba_upgraddns --dns-backend=BIND9_DLZ
+#   ansible.builtin.command: samba_upgraddns --dns-backend=SAMBA_INTERNAL
+#   ansible.builtin.lineinfile:
+#   when: ansible_run_tags in ["BIND9_DLZ"]
+#   when: ansible_run_tags in ["SAMBA_INTERNAL"]
+
 # Source: https://bugzilla.samba.org/show_bug.cgi?id=14535
 # Fixes an issue that existed in pre 4.15 versions.
 - name: "[NAMED] - Copy dns.keytab (bugfix for 14535)."

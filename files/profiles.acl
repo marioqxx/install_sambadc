@@ -1,0 +1,23 @@
+# file: profiles/
+# owner: root
+# group: ADN\\domain\040admins
+user::rwx
+user:root:rwx
+user:NT\040Authority\\system:rwx
+user:ADN\\domain\040admins:rwx
+group::rwx
+group:users:rwx
+group:NT\040Authority\\system:rwx
+group:ADN\\domain\040admins:rwx
+mask::rwx
+other::---
+default:user::rwx
+default:user:root:rwx
+default:user:NT\040Authority\\system:rwx
+default:user:ADN\\domain\040admins:rwx
+default:group::---
+default:group:NT\040Authority\\system:rwx
+default:group:ADN\\domain\040admins:rwx
+default:mask::rwx
+default:other::---
+

@@ -1,11 +1,11 @@
-# Paremeters concerning the sambapackes to use
+# Paremeters concerning the sambapackets to use
 sambadc_use_backport: false
 
 # Core parameters for the domain controller
-sambadc_realm: "ads.orbit"
+sambadc_realm: ""
 sambadc_dns: "SAMBA_INTERNAL"
 sambadc_forwarder: "192.168.1.1"
-sambadc_admin_password: 'PassW0rD'
+sambadc_admin_password: "PassW0rD"
 
 # sambadc_type: new or join
 sambadc_type: "new"

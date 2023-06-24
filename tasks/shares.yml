@@ -1,0 +1,77 @@
+---
+# Create share permissions for Roaming-profile directory and home-directory.
+# The Roaming-profile directory for the user is automatically created upon first login of said user.
+# The home-directory is not created and must be created with the creation of the user.
+# In both cases, the parent-directory must have correct permissions.
+# The samba-wiki suggests to set them via Windows. Here an alternative way is gone, which
+# works even when the DC is also used as fileserver for those directories.
+#
+# vfs_xattr:ignore system acl=yes may not be set (needs proof, but sound plausible).
+
+- name: "{{ '[SHARES] - Create and set permissions for isHome or isRoaming type share ' + item.path }}"
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: root
+    group: "Domain Admins"
+    mode: u=rwx,g=rwx,o=-
+    state: directory
+  tags:
+    - shares
+
+- name: "{{ '[SHARES] - Set isHome share Permissions for ' + item.path }}"
+  ansible.builtin.command: setfacl --set-file=- "{{ item.path }}"
+  args:
+    stdin: |
+      # owner: root
+      # group: ADN\\domain\040admins
+      user::rwx
+      user:root:rwx
+      user:ADN\\domain\040admins:rwx
+      group::rwx
+      group:users:r-x
+      group:ADN\\domain\040admins:rwx
+      mask::rwx
+      other::---
+      default:user::rwx
+      default:user:root:rwx
+      default:user:ADN\\domain\040admins:rwx
+      default:group::---
+      default:group:users:---
+      default:group:ADN\\domain\040admins:rwx
+      default:mask::rwx
+      default:other::---
+  when: item.type is match("isHome")
+  changed_when: true
+  tags:
+    - shares
+      # flags: -s-
+
+- name: "{{ '[SHARES] - Set isRoaming share Permissions for ' + item.path }}"
+  ansible.builtin.command: setfacl --set-file=- "{{ item.path }}"
+  args:
+    stdin: |
+      # owner: root
+      # group: ADN\\domain\040admins
+      user::rwx
+      user:root:rwx
+      user:NT\040Authority\\system:rwx
+      user:ADN\\domain\040admins:rwx
+      group::rwx
+      group:users:rwx
+      group:NT\040Authority\\system:rwx
+      group:ADN\\domain\040admins:rwx
+      mask::rwx
+      other::---
+      default:user::rwx
+      default:user:root:rwx
+      default:user:NT\040Authority\\system:rwx
+      default:user:ADN\\domain\040admins:rwx
+      default:group::---
+      default:group:NT\040Authority\\system:rwx
+      default:group:ADN\\domain\040admins:rwx
+      default:mask::rwx
+      default:other::---
+  when: item.type is match("isRoaming")
+  changed_when: true
+  tags:
+    - shares
