@@ -3,6 +3,13 @@
 # An existing configuration and database will be deleted and a new configuraiton created.
 #
 # ATTENTION: THIS WILL DELETE YOUR CURRENT CONFIGURED DC IRREVOCABLY.
+# - name: "[MAIN] - Debug"
+#   ansible.builtin.debug:
+#     var: ansible_facts
+
+# - name: "[MAIN] - Debug"
+#   ansible.builtin.meta: end_play
+
 - name: "[MAIN] - Sanity check variables given for minimum configuration."
   ansible.builtin.include_tasks: usage.yml
   tags:
@@ -23,15 +30,18 @@
   tags:
     - dns_bind_dlz
 
+# Remove smbd, nmbd and winbind as well as systemd-resolved from starting and shut those
+# services down. Note that DNS afterwards does not work anymore.
+- name: "[MAIN] - Prepare systemd settings and stop services."
+  ansible.builtin.include_tasks: systemd.yml
+  tags:
+    - cleanup
+
+# Requires stopped services, thus must be after systemd.yml tasks.
 - name: "[MAIN] - Cleanup any existing config, DB and log-files of an existing DC."
   ansible.builtin.include_tasks: cleanup.yml
   tags:
     - cleanup
-
-# Remove smbd, nmbd and winbind as well as systemd-resolved from starting and shut those
-# services down. Note that DNS afterwards does not work anymore.
-- name: "[MAIN] - Prepare systemd settings."
-  ansible.builtin.include_tasks: systemd.yml
 
 - name: "[MAIN] - set IP-address for local name resolution - Pre-Provision."
   ansible.builtin.set_fact:

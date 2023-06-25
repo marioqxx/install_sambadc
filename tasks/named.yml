@@ -71,7 +71,9 @@
 # Create Reverse zone and associated entry for Reverse resolution on host.
 - name: "[NAMED] - Add a Reversezone."
   ansible.builtin.command: >
-    samba-tool dns zonecreate localhost {{ ipv4ptr }} -U Administrator --password={{ sambadc_admin_password }}
+    samba-tool dns zonecreate localhost {{ ipv4ptr }} -U Administrator
+  args:
+    stdin: "{{ sambadc_admin_password }}"
   changed_when: true
   failed_when: false
   register: df_cmd
@@ -80,7 +82,9 @@
 
 - name: "[NAMED] - Add the host to the Reversezone."
   ansible.builtin.command: >
-    samba-tool dns add localhost {{ ipv4ptr }} {{ ipv4host }} PTR {{ sambadc_fqdn }} -U Administrator --password={{ sambadc_admin_password }}
+    samba-tool dns add localhost {{ ipv4ptr }} {{ ipv4host }} PTR {{ sambadc_fqdn }} -U Administrator
+  args:
+    stdin: "{{ sambadc_admin_password }}"
   changed_when: true
   tags:
     - dns_bind_dlz

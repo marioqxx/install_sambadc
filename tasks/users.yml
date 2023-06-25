@@ -63,12 +63,6 @@
   tags:
     - settings
 
-# - name: "[USERS] - Debug."
-#  ansible.builtin.debug:
-#    var: df_cmd
-#  tags:
-#    - settings
-
 - name: "[USERS] - Re-Obtaining existing Users."
   ansible.builtin.command: samba-tool user list
   register: domain_users

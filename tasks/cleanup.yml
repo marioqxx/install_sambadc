@@ -1,17 +1,6 @@
 ---
 # Remove all config-files and database-files for a fresh domain provision
 # Source: https://wiki.samba.org/index.php/Setting_up_Samba_as_an_Active_Directory_Domain_Controller#Fresh_Installation
-- name: "[CLEANUP] - Stop systemd-resolved and Samba related services."
-  ansible.builtin.systemd:
-    name: "{{ item }}"
-    state: "stopped"
-  loop:
-    - smbd
-    - nmbd
-    - winbind
-    - samba-ad-dc
-    - systemd-resolved
-
 - name: "[CLEANUP] - Collect samba DB-files in samba-directories."
   ansible.builtin.find:
     paths: "{{ item.path }}"

@@ -11,6 +11,15 @@
     - smbd
     - nmbd
     - winbind
+  tags:
+    - cleanup
+
+- name: "[SYSTEMD] - Enable but stop samba-ad-dc service for samba DC installation."
+  ansible.builtin.systemd:
+    name: samba-ad-dc
+    state: stopped
+    enabled: true
+    masked: false
 
 - name: "[SYSTEMD] - Disable systemd-resolved, necessary from Ubuntu 18.04 onwards."
   ansible.builtin.systemd:
@@ -18,6 +27,9 @@
     state: stopped
     enabled: false
     masked: true
+  when: (ansible_facts.distribution | lower) is not match("debian")
+  tags:
+    - cleanup
 
 - name: "[SYSTEMD] - Disable named/bind9 if installed, because SAMBA-INTERNAL is configured."
   ansible.builtin.systemd:
@@ -36,10 +48,3 @@
     enabled: true
     masked: false
   when: sambadc_dns in [ "BIND9_FLATFILE", "BIND9_DLZ" ]
-
-- name: "[SYSTEMD] - Enable samba-ad-dc service for samba DC installation."
-  ansible.builtin.systemd:
-    name: samba-ad-dc
-    state: stopped
-    enabled: true
-    masked: false

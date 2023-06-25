@@ -6,7 +6,9 @@
 # First install the ADMX templates that come with samba.
 - name: "[GPO] - Install Samba ADMX-Templates that come with Samba first."
   ansible.builtin.command: >
-    samba-tool gpo admxload -H "{{ sambadc_fqdn }}" -U Administrator --password="{{ sambadc_admin_password }}"
+    samba-tool gpo admxload -H "{{ sambadc_fqdn }}" -U Administrator
+  args:
+    stdin: "{{ sambadc_admin_password }}"
   changed_when: true
   tags:
     - gpo
@@ -22,6 +24,7 @@
     mode: "0644"
     state: directory
   loop: "{{ sambadc_gpo_template }}"
+  changed_when: false
   when: sambadc_gpo_template is defined
   tags:
     - gpo
@@ -34,6 +37,7 @@
     group: root
     mode: "0664"
   loop: "{{ sambadc_gpo_template }}"
+  changed_when: false
   when: sambadc_gpo_template is defined
   tags:
     - gpo
@@ -41,8 +45,9 @@
 - name: "[GPO] - Install configured GPO-Templates."
   ansible.builtin.command: >
     samba-tool gpo admxload -H "{{ sambadc_fqdn }}" -U Administrator
-      --password="{{ sambadc_admin_password }}"
       --admx-dir="/tmp/{{ item | basename }}"
+  args:
+    stdin: "{{ sambadc_admin_password }}"
   changed_when: df_cmd.rc == 0
   loop: "{{ sambadc_gpo_template }}"
   register: df_cmd
@@ -56,6 +61,7 @@
     path: "/tmp/{{ item | basename }}"
     state: absent
   loop: "{{ sambadc_gpo_template }}"
+  changed_when: false
   when: sambadc_gpo_template is defined
   tags:
     - gpo
@@ -75,6 +81,7 @@
     mode: "0644"
     state: directory
   loop: "{{ sambadc_gpo }}"
+  changed_when: false
   when: sambadc_gpo is defined
   tags:
     - gpo
@@ -87,6 +94,7 @@
     group: root
     mode: "0664"
   loop: "{{ sambadc_gpo }}"
+  changed_when: false
   when: sambadc_gpo is defined
   tags:
     - gpo
@@ -104,14 +112,17 @@
     group: root
     mode: "0664"
     state: directory
+  changed_when: false
   tags:
     - gpo
 
 - name: "[GPO] - Install configured Group Policies."
   ansible.builtin.command: >
     samba-tool gpo restore "{{ item | basename | split('.') | first }}" "/tmp/{{ item | basename }}"
-      -H "{{ sambadc_fqdn }}" -U Administrator --password="{{ sambadc_admin_password }}"
+      -H "{{ sambadc_fqdn }}" -U Administrator
       --tmpdir="/tmp/policies"
+  args:
+    stdin: "{{ sambadc_admin_password }}"
   loop: "{{ sambadc_gpo }}"
   changed_when: df_cmd.stdout is search("created")
   failed_when: df_cmd.stderr is not search("existing") and (df_cmd.rc != 0)
@@ -124,6 +135,7 @@
   ansible.builtin.file:
     path: "/tmp/policies"
     state: absent
+  changed_when: false
   tags:
     - gpo
 
@@ -132,6 +144,7 @@
     path: "/tmp/{{ item | basename }}"
     state: absent
   loop: "{{ sambadc_gpo }}"
+  changed_when: false
   when: sambadc_gpo is defined
   tags:
     - gpo
@@ -144,7 +157,9 @@
 #      -H "{{ sambadc_fqdn }}" -U Administrator
 - name: "[GPO] - Obtain GPO displayname to UUID-mapping (1/2)."
   ansible.builtin.command: >
-    samba-tool gpo listall -U Administrator --password="{{ sambadc_admin_password }}"
+    samba-tool gpo listall -U Administrator
+  args:
+    stdin: "{{ sambadc_admin_password }}"
   changed_when: false
   register: df_cmd
   when: sambadc_gpo_activate is defined
@@ -155,6 +170,7 @@
   ansible.builtin.set_fact:
     keynames: "{{ df_cmd.stdout_lines | select('search', 'display name') | reverse | map('regex_replace', '.*:', '') | map('trim') }}"
     values: "{{ df_cmd.stdout_lines | select('search', 'GPO') | reverse | map('regex_replace', '.*:', '') | map('trim') }}"
+  changed_when: false
   when: sambadc_gpo_activate is defined
   tags:
     - gpo
@@ -172,11 +188,12 @@
 #   tags:
 #     - gpo
 
-# samba-tool fails when called witzh option -H.
+# samba-tool gpo fails when called with option -H. Adding a link in the LDAP-tree at sambadc_ldap activates the GPO.
 - name: "[GPO] - Activate configured Group Policies."
   ansible.builtin.command: >
-    samba-tool gpo setlink "{{ sambadc_ldap }}" "{{ gpo_mapping[item] }}"
-      -U Administrator --password="{{ sambadc_admin_password }}"
+    samba-tool gpo setlink "{{ sambadc_ldap }}" "{{ gpo_mapping[item] }}" -U Administrator
+  args:
+    stdin: "{{ sambadc_admin_password }}"
   changed_when: df_cmd.stdout is search("created")
   failed_when: df_cmd.stderr is not search("already") and (df_cmd.rc != 0)
   loop: "{{ sambadc_gpo_activate }}"
