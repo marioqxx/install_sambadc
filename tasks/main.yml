@@ -3,12 +3,18 @@
 # An existing configuration and database will be deleted and a new configuraiton created.
 #
 # ATTENTION: THIS WILL DELETE YOUR CURRENT CONFIGURED DC IRREVOCABLY.
+#     var: ansible_facts
 # - name: "[MAIN] - Debug"
 #   ansible.builtin.debug:
-#     var: ansible_facts
+#     var: sambadc_exportkeytab
+#     var: ansible_fact
+#   tags:
+#     - settings
 
 # - name: "[MAIN] - Debug"
 #   ansible.builtin.meta: end_play
+#   tags:
+#     - settings
 
 - name: "[MAIN] - Sanity check variables given for minimum configuration."
   ansible.builtin.include_tasks: usage.yml
@@ -24,6 +30,7 @@
     - install
     - check
     - shares
+    - settings
 
 - name: "[MAIN] - Sanity check variables given for extended configuration."
   ansible.builtin.include_tasks: usage_post.yml
@@ -45,7 +52,7 @@
 
 - name: "[MAIN] - set IP-address for local name resolution - Pre-Provision."
   ansible.builtin.set_fact:
-    dns_address: "{{ sambadc_forwarder }}"
+    sambadc_dns_address: "{{ sambadc_forwarder }}"
 
 - name: "{MAIN] - Re-enable (static) DNS-resolution by writing '/etc/resolv.conf'."
   ansible.builtin.template:
@@ -140,7 +147,7 @@
 
 - name: "[MAIN] - set IP-address for local name resolution - Post-Provision."
   ansible.builtin.set_fact:
-    dns_address: "127.0.0.1"
+    sambadc_dns_address: "127.0.0.1"
 
 - name: "{{ '[MAIN] - DNS-resolution re-directed to ' + sambadc_dns + ', writing to /etc/resolv.conf.' }}"
   ansible.builtin.template:

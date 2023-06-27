@@ -18,37 +18,38 @@
   tags:
     - settings
 
-# Set the SeDiskOperatorPrivilege for Administrator
-- name: "[SETTINGS] - Check if the net command supports password command-line option."
-  ansible.builtin.command: net help
-  register: df_cmd
-  failed_when: false
-  changed_when: false
-  tags:
-    - settings
-
-- name: "[SETTINGS] - Set SeDiskOperatorPrivilege for Administrator."
+# Export all configured keytabs.
+# see ansible-docs at playbooks_tests#type-tests for how to identify list type of variable.
+- name: "[SETTINGS] - Create SPN is not (implicit) existent."
   ansible.builtin.command: >
-    net rpc rights grant "{{ sambadc_workgroup + '\Domain Admins' }}"
-      SeDiskOperatorPrivilege
-      --user "{{ sambadc_workgroup + '\Administrator' }}"
-      --password "{{ sambadc_admin_password }}"
-  changed_when: true
-  when: df_cmd.stdout is search("--password")
+    samba-tool spn add "{{ item.0.service }}/{{ item.1 }}@{{ sambadc_realm | upper }}" "{{ item.1 | split('.') | first }}$"
+  register: df_cmd
+  changed_when: (df_cmd.rc == 0)
+  failed_when: (df_cmd.rc != 0) and (df_cmd.stderr | lower) is not search("already")
+  loop: "{{ sambadc_exportkeytab | subelements('principals') }}"
+  when:
+    - (item.1 | lower) not in sambadc_implicit_spn
+    - (sambadc_exportkeytab is not string) and (sambadc_exportkeytab is not mapping) and (sambadc_exportkeytab is sequence)
   tags:
     - settings
 
-# This complicated way to express user and password is reuiqred due to ansible-bugs
-# handling "\" and in order not to exceed line-length limits.
-- name: "[SETTINGS] - Set SeDiskOperatorPrivilege for Administrator."
-  ansible.builtin.shell: |
-    set -o pipefail
-    echo {{ sambadc_admin_password }} | net rpc rights grant "{{ sdcdm + '\Domain Admins' }}" SeDiskOperatorPrivilege --user "{{ sdcdm + '\Administrator' }}"
+- name: "[SETTINGS] - Export configured keytabs to PRIVATEDIR."
+  ansible.builtin.command: >
+    samba-tool domain exportkeytab "{{ PRIVATE_DIR }}/{{ item.0.keytabfilename }}"
+       --principal="{{ item.0.service }}/{{ item.1 }}"
+  register: df_cmd
+  changed_when: (df_cmd.rc == 0) and (df_cmd.stdout | lower) is search("export")
+  loop: "{{ sambadc_exportkeytab | subelements('principals') }}"
+  when: (sambadc_exportkeytab is not string) and (sambadc_exportkeytab is not mapping) and (sambadc_exportkeytab is sequence)
+  tags:
+    - settings
+
+# Set the SeDiskOperatorPrivilege for user Administrator
+- name: "[SETTINGS] - Set SeDiskOperatorPrivilege for 'Domain Admins'-group."
+  ansible.builtin.command: >
+    net rpc rights grant "{{ sambadc_workgroup + '\Domain Admins' }}" SeDiskOperatorPrivilege --user "{{ sambadc_workgroup + '\Administrator' }}"
   args:
-    executable: /bin/bash
+    stdin: "{{ sambadc_admin_password }}"
   changed_when: true
-  vars:
-    sdcdm: sambadc_workgroup
-  when: df_cmd.stdout is not search("--password")
   tags:
     - settings

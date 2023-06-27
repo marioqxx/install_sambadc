@@ -4,10 +4,30 @@
 # Helper setting for interims DNS-resolution needed for packages download.
 # Note: Due to variable-precedence rules has to be set in defaults. Will be changed
 # during play.
-dns_address: "{{ sambadc_forwarder }}"
+# dns_address: "{{ sambadc_forwarder }}"
 sambadc_fqdn: "{{ ansible_hostname }}.{{ sambadc_realm }}"
 sambadc_workgroup: "{{ sambadc_realm.split('.')[0] | upper }}"
 sambadc_ldap: "{{ 'dc=' + sambadc_realm.split('.') | join(',dc=') }}"
+
+# Implicit Services, i.e. spn's according Kerberos, 2nd edition
+# from Mark Pröhl and Daniel Kobras, dpunkt publisher, page 326.
+# Note: According this book, there shall be an LDAP-Object at
+# CN=Directory Service,CN=Windows NT,CN=Services,CN=Configuration,dc=example,dc=com
+# for domain example.com with attribute sPNMappings. In samba 4.17
+# there is neither such an object nor the attribute somewhere in the tree
+# und samba-tool spn lists computer$ does not list them either.
+# Nevertheless samba-tool does export a keytab if that service is given,
+# but samba-tool does not through an error when the service isn't available
+# but instead does nothing.
+sambadc_implicit_spn: >
+  [ "alerter", "appmgmt", "cisvc", "clipsrv", "browser",
+    "dhcp", "dnscache", "replicator", "eventlog", "eventsystem",
+    "policyagent", "oakley", "dmserver", "dns", "mcsvc", "fax", "msiserver", "ias",
+    "messenger", "netlogon", "netman", "netdde", "netddedsm", "nmagnet",
+    "plugplay", "protectedstorage", "rasman", "rpclocator", "rpc", "rpcss",
+    "remoteaccess", "rsvp", "samss", "scardsvr", "scesrv", "seclogon", "scm",
+    "dcom", "cifs", "spooler", "snmp", "schedule", "tapisrv", "trksvr", "trkwks",
+    "ups", "time", "wins", "www", "http", "w3svc", "iisadmin", "msdtc" ]
 
 # Ansible bug. Does not work. Reverting to original quirky version
 # of settings.yml.

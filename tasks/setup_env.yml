@@ -103,6 +103,7 @@
     - dns_bind_dlz
     - check
     - shares
+    - settings
 
 - name: "[SETUP-ENV] - Create Variables and set to associated directory."
   ansible.builtin.set_fact:
@@ -130,6 +131,7 @@
     - dns_bind_dlz
     - check
     - shares
+    - settings
 
 # Directories returned form call smbd -b. Double-check presence of mandatory, because used, directories. Probably not needed.
 - name: "[SETUP-ENV] - Check samba returned required directories."
