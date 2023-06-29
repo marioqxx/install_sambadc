@@ -43,10 +43,13 @@
   ansible.builtin.blockinfile:
     path: /etc/bind/named.conf.options
     block: |
-           forwarders {
-             {{ sambadc_forwarder }};
-           };
-           tkey-gssapi-keytab "{{ BINDDNS_DIR }}/dns.keytab";
+           #
+                   # https://wiki.samba.org/index.php/BIND9_DLZ_DNS_Back_End#Setting_up_BIND9_options_and_keytab_for_Kerberos
+                   forwarders {
+                     {{ sambadc_forwarder }};
+                   };
+                   tkey-gssapi-keytab "{{ BINDDNS_DIR }}/dns.keytab";
+                   minimal-responses yes;
     insertafter: '// };'
   tags:
     - dns_bind_dlz
@@ -68,14 +71,23 @@
   tags:
     - dns_bind_dlz
 
+# Finally uncomment in /var/lib/samba/bind-dns/named.conf the lib corresponding to the named version.
+- name: "[NAMED] - Uncomment in BINDDNS_DIR the respective version in named.conf-file."
+  ansible.builtin.replace:
+    dest: "{{ BINDDNS_DIR }}/named.conf"
+    regexp: '^(\s*)#(.*9_18.*)$'
+    replace: '\1\2'
+  tags:
+    - dns_bind_dlz
+
 # Create Reverse zone and associated entry for Reverse resolution on host.
 - name: "[NAMED] - Add a Reversezone."
   ansible.builtin.command: >
     samba-tool dns zonecreate localhost {{ ipv4ptr }} -U Administrator
   args:
     stdin: "{{ sambadc_admin_password }}"
-  changed_when: true
-  failed_when: false
+  changed_when: (df_cmd.rc == 0)
+  failed_when: (df_cmd.rc != 0) and ((df_cmd.stderr | lower) is not search("exists"))
   register: df_cmd
   tags:
     - dns_bind_dlz
@@ -85,7 +97,9 @@
     samba-tool dns add localhost {{ ipv4ptr }} {{ ipv4host }} PTR {{ sambadc_fqdn }} -U Administrator
   args:
     stdin: "{{ sambadc_admin_password }}"
-  changed_when: true
+  changed_when: (df_cmd.rc == 0)
+  failed_when: (df_cmd.rc != 0) and ((df_cmd.stderr | lower) is not search("exists"))
+  register: df_cmd
   tags:
     - dns_bind_dlz
 

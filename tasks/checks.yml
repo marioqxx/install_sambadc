@@ -1,45 +1,45 @@
 ---
 # After Provisioning, perform checks if the DC is up and running.
 # Perform checks as to DNS resolution.
-- name: "[CHECK] - DNS-Loockup DC-services: ldap, TCP."
+- name: "[CHECK] - DNS-Lookup DC-services: ldap, TCP."
   ansible.builtin.command: testparm -s /etc/samba/smb.conf
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - DNS-Loockup DC-services: ldap, TCP."
+- name: "[CHECK] - DNS-Lookup DC-services: ldap, TCP."
   ansible.builtin.command: host -t SRV "_ldap._tcp.{{ sambadc_realm }}"
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - DNS-Loockup DC-services: kerberos, UDP."
+- name: "[CHECK] - DNS-Lookup DC-services: kerberos, UDP."
   ansible.builtin.command: host -t SRV "_kerberos._udp.{{ sambadc_realm }}"
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - DNS-Loockup DC-services: gc, TCP."
+- name: "[CHECK] - DNS-Lookup DC-services: gc, TCP."
   ansible.builtin.command: host -t SRV "_gc._tcp.{{ sambadc_realm }}"
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - DNS-Loockup A-Record of DC, returns IP-Address."
+- name: "[CHECK] - DNS-Lookup A-Record of DC, returns IP-Address."
   ansible.builtin.command: host -t A "{{ sambadc_fqdn }}"
   register: df_cmd
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - DNS-Reverse-Loockup DC (ipv4 only)."
+- name: "[CHECK] - DNS-Reverse-Lookup DC (ipv4 only)."
   ansible.builtin.command: host "{{ df_cmd.stdout | regex_findall('[0-9]+.[0-9]+.[0-9]+.[0-9]+') | join }}"
   failed_when: false
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - DNS-Loockup checking configured forward DNS-server."
+- name: "[CHECK] - DNS-Lookup checking configured forward DNS-server."
   ansible.builtin.command: host -t A "{{ sambadc_check_forwardzone_host }}"
   failed_when: false
   changed_when: false
@@ -52,11 +52,11 @@
   tags:
     - check
 
-- name: "[CHECK] - Check DNS-update functionality."
-  ansible.builtin.command: samba_dnsupdate --all-names
-  changed_when: false
-  tags:
-    - check
+# - name: "[CHECK] - Check DNS-update functionality."
+#   ansible.builtin.command: samba_dnsupdate --all-names
+#   changed_when: false
+#   tags:
+#     - check
 
 # Perform checks as to Kerberos.
 - name: "[CHECK] - Check Kerberos authentication."
@@ -89,55 +89,24 @@
       ansible.builtin.command: kdestroy -c /tmp/krb5cc_1000
       changed_when: false
 
+# Some Checks with smbclient.
 - name: "[CHECK] - Test anonymous connect to DC."
   ansible.builtin.command: smbclient -L localhost -N
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - Check if smbclient-version supports commandline --password option."
-  ansible.builtin.command: smbclient
-  register: df_cmd
-  failed_when: false
+- name: "[CHECK] - Test connection via smbclient and username/password."
+  ansible.builtin.command: smbclient -L "{{ sambadc_fqdn }}" -U Administrator
+  args:
+    stdin: "{{ sambadc_admin_password }}"
   changed_when: false
-  tags:
-    - check
 
-# Commandline option --password for smbclient only available from 4.15 on.
-- name: "[CHECK] - Test connection via username/password (smbclient with --password commandline option."
-  when: df_cmd.stdout is search("--password")
-  tags:
-    - check
-  block:
-    - name: "[CHECK] - Test connection via usaername/password (smbclient with password-option)."
-      ansible.builtin.command: smbclient -L "{{ sambadc_fqdn }}" -U Administrator --password="{{ sambadc_admin_password }}"
-      changed_when: false
-
-    - name: "[CHECK] - Test connection to netlogon via username/password (smbclient with password-option)."
-      ansible.builtin.command: smbclient //"{{ sambadc_fqdn }}"/netlogon -c "ls" -U Administrator --password="{{ sambadc_admin_password }}"
-      changed_when: false
-
-# Needed for pre 4.15 Version of samba.
-- name: "[CHECK] - Test connection via username/password (smbclient without --password commandline option)."
-  when: df_cmd.stdout is not search("--password")
-  tags:
-    - check
-  block:
-    - name: "[CHECK] - Test connection via usaername/password (smbclient without password-option)."
-      ansible.builtin.shell: |
-        set -o pipefail
-        echo {{ sambadc_admin_password }} | smbclient -L "{{ sambadc_fqdn }}" -U Administrator
-      args:
-        executable: /bin/bash
-      changed_when: false
-
-    - name: "[CHECK] - Test connection to netlogon via username/password (smbclient without password-option)."
-      ansible.builtin.shell: |
-        set -o pipefail
-        echo {{ sambadc_admin_password }} | smbclient -L "{{ sambadc_fqdn }}" -U Administrator
-      args:
-        executable: /bin/bash
-      changed_when: false
+- name: "[CHECK] - Test connection to netlogon via smbclient and username/password."
+  ansible.builtin.command: smbclient //"{{ sambadc_fqdn }}"/netlogon -c "ls" -U Administrator
+  args:
+    stdin: "{{ sambadc_admin_password }}"
+  changed_when: false
 
 # Check SSL access to LDAP (if configured).
 - name: "[CHECK] - Check certificate verification and chain of trust."

@@ -149,7 +149,7 @@
   ansible.builtin.set_fact:
     sambadc_dns_address: "127.0.0.1"
 
-- name: "{{ '[MAIN] - DNS-resolution re-directed to ' + sambadc_dns + ', writing to /etc/resolv.conf.' }}"
+- name: "{{ '[MAIN] - DNS-resolution re-directed to ' + sambadc_dns_address + ', writing to /etc/resolv.conf.' }}"
   ansible.builtin.template:
     src: templates/resolv.conf.j2
     dest: /etc/resolv.conf
