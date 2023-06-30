@@ -58,6 +58,22 @@
     - dns_bind_dlz
     - install
 
+- name: "[SETUP-ENV] - Obtain named version (1/2)."
+  ansible.builtin.command: named -v
+  register: df_cmd
+  changed_when: false
+  when: sambadc_dns in [ "BIND9_FLATFILE", "BIND9_DLZ" ]
+  tags:
+    - dns_bind_dlz
+
+- name: "[SETUP-ENV] - Obtain named version (2/2)."
+  ansible.builtin.set_fact:
+    sambadc_bindversion: "{{ df_cmd.stdout | regex_search('BIND.([0-9]+).([0-9]+).([0-9]+)', '\\1', '\\2', '\\3') }}"
+  changed_when: false
+  when: sambadc_dns in [ "BIND9_FLATFILE", "BIND9_DLZ" ]
+  tags:
+    - dns_bind_dlz
+
 - name: "[SETUP-ENV] - Packages Autoclean and Autoremove."
   ansible.builtin.apt:
     autoclean: true

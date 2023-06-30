@@ -157,10 +157,26 @@
     group: root
     mode: "0644"
 
+# On debian based system, and if dhclient is configured, then add omit some DHCP-parameters
+# received. See: https://wiki.debian.org/resolv.conf
+# Note: A DC or fileserver shall have a fixed IP-address assigned.
+- name: "[MAIN] - On Debian based systems ensure that resolv.conf is not overwritten by dhclient."
+  ansible.builtin.blockinfile:
+    dest: "/etc/dhcp/dhclient.conf"
+    state: present
+    insertafter: EOF
+    content: |
+      supersede domain-name "{{ sambadc_realm }}";
+      supersede domain-search "{{ sambadc_realm }}";
+      supersede domain-name-servers 127.0.0.1;
+  when: (ansible_facts.distribution | lower) is match ('debian')
+
+# Check the functionality of the Domain Controller (member)
 - name: "[MAIN] - Check if the DC is operational and DNS works."
   ansible.builtin.include_tasks: checks.yml
   tags:
     - check
+    - join
 
 - name: "[MAIN] - Precautionary check of sysvol permissions."
   ansible.builtin.command: samba-tool ntacl sysvolcheck
@@ -171,7 +187,7 @@
   changed_when: true
 
 # The Domain Controller shall now be up and running and functional.
-# Configure the Domain Controller.
+# NEXT: Configure the Domain Controller.
 - name: "[MAIN] - Configure some settings of the Domain Controller."
   ansible.builtin.include_tasks: settings.yml
   when: sambadc_type | lower == "new"

@@ -75,7 +75,7 @@
 - name: "[NAMED] - Uncomment in BINDDNS_DIR the respective version in named.conf-file."
   ansible.builtin.replace:
     dest: "{{ BINDDNS_DIR }}/named.conf"
-    regexp: '^(\s*)#(.*9_18.*)$'
+    regexp: "{{ '^(\\s*)#(.*' + sambadc_bindversion[0] + '_' + sambadc_bindversion[1] + '.*)$' }}"
     replace: '\1\2'
   tags:
     - dns_bind_dlz
