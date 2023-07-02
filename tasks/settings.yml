@@ -20,7 +20,7 @@
 
 # Export all configured keytabs.
 # see ansible-docs at playbooks_tests#type-tests for how to identify list type of variable.
-- name: "[SETTINGS] - Create SPN is not (implicit) existent."
+- name: "[SETTINGS] - Create SPN if not (implicit) existent."
   ansible.builtin.command: >
     samba-tool spn add "{{ item.0.service }}/{{ item.1 }}@{{ sambadc_realm | upper }}" "{{ item.1 | split('.') | first }}$"
   register: df_cmd
@@ -41,6 +41,21 @@
   changed_when: (df_cmd.rc == 0) and (df_cmd.stdout | lower) is search("export")
   loop: "{{ sambadc_exportkeytab | subelements('principals') }}"
   when: (sambadc_exportkeytab is not string) and (sambadc_exportkeytab is not mapping) and (sambadc_exportkeytab is sequence)
+  tags:
+    - settings
+
+- name: "[SETTINGS] - Copy configured keytabs to the configured directories."
+  ansible.builtin.copy:
+    src: "{{ PRIVATE_DIR }}/{{ item.keytabfilename }}"
+    dest: "{{ item.destination[0] }}"
+    owner: "{{ item.destination[1] }}"
+    group: "{{ item.destinaiton[2] }}"
+    mode: "{{ item.destination[3] }}"
+    remote_src: true
+  loop: "{{ sambadc_exportkeytab }}"
+  when:
+    - (sambadc_exportkeytab is not string) and (sambadc_exportkeytab is not mapping) and (sambadc_exportkeytab is sequence)
+    - (item.destination is defined) and (item.destination | length) == 4
   tags:
     - settings
 
