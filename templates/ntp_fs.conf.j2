@@ -1,0 +1,23 @@
+# Local clock. Note that is not the "localhost" address!
+server 127.127.1.0
+fudge  127.127.1.0 stratum 10
+
+# Where to retrieve the time from
+{% for time_srv in sambadc_timeservers %}
+server {{ time_srv.name }} iburst prefer
+{% endfor %}
+
+driftfile       {{ sambadc_ntp_driftfile }}
+logfile         {{ sambadc_ntp_log }}
+
+# Access control
+# Default restriction: Disallow everything
+restrict default ignore
+
+# No restrictions for "localhost"
+restrict 127.0.0.1
+
+# Enable the time sources to only provide time to this host
+{% for time_srv in sambadc_timeservers %}
+restrict {{ time_srv.name }}   mask 255.255.255.255    nomodify notrap nopeer noquery
+{% endfor %}

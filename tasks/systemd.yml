@@ -20,14 +20,22 @@
     state: stopped
     enabled: true
     masked: false
+  tags:
+    - cleanup
 
-- name: "[SYSTEMD] - Disable systemd-resolved, necessary from Ubuntu 18.04 onwards."
+# Source: https://dev.to/koh_sh/how-to-do-if-a-package-is-installed-do-something-with-ansible-3fhi
+- name: "[SYSTEMD] - Disable systemd-resolved and/or systemd-timesyncd, necessary from Ubuntu 18.04 onwards."
   ansible.builtin.systemd:
-    name: systemd-resolved
+    name: "{{ item }}"
     state: stopped
     enabled: false
     masked: true
-  when: (ansible_facts.distribution | lower) is not match("debian")
+  loop:
+    - systemd-resolved
+    - systemd-timesyncd
+  when:
+    - "'{{ item }}' in ansible_facts.packages"
+#    - (ansible_facts.distribution | lower) is not match("debian")
   tags:
     - cleanup
 

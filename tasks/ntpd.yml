@@ -12,15 +12,29 @@
 - name: "[NTPD] - Set timezone."
   ansible.builtin.command: timedatectl set-timezone "{{ sambadc_timezone }}"
   changed_when: true
+  tags:
+    - join
 
-- name: "[NTPD] - Generate ntpd configuration for DC."
+- name: "[NTPD] - Generate ntpd configuration for Fileserver."
   ansible.builtin.template:
-    src: templates/ntp.conf.j2
+    src: templates/ntp_fs.conf.j2
     dest: "{{ sambadc_ntp_conf_file }}"
     owner: "root"
     group: "{{ sambadc_ntp_group }}"
     mode: "0440"
     force: true
+  tags:
+    - join
+
+- name: "[NTPD] - Generate ntpd configuration for DC."
+  ansible.builtin.template:
+    src: templates/ntp_dc.conf.j2
+    dest: "{{ sambadc_ntp_conf_file }}"
+    owner: "root"
+    group: "{{ sambadc_ntp_group }}"
+    mode: "0440"
+    force: true
+  when: "All" in ansible_run_tags
 
 - name: "{{ '[NTPD] Set permission for directory' + SAMBA_STATEDIR + '/ntp_signd .' }}"
   ansible.builtin.file:
@@ -29,3 +43,4 @@
     owner: "root"
     group: "{{ sambadc_ntp_group }}"
     mode: "0750"
+  when: "All" in ansible_run_tags

@@ -35,7 +35,7 @@
     - smbclient
     - ldb-tools
     - samba-common
-    - ntp
+    - ntpsec
     - acl
     - net-tools
     - ldap-utils

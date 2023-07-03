@@ -49,7 +49,7 @@
     src: "{{ PRIVATE_DIR }}/{{ item.keytabfilename }}"
     dest: "{{ item.destination[0] }}"
     owner: "{{ item.destination[1] }}"
-    group: "{{ item.destinaiton[2] }}"
+    group: "{{ item.destination[2] }}"
     mode: "{{ item.destination[3] }}"
     remote_src: true
   loop: "{{ sambadc_exportkeytab }}"

@@ -13,7 +13,7 @@
     path: "{{ item.path }}"
     owner: root
     group: "Domain Admins"
-    mode: u=rwx,g=rwx,o=-
+    mode: u=rwx,g=rwx,o=x
     state: directory
   tags:
     - shares
