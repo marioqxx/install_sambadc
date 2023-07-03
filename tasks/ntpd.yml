@@ -34,7 +34,7 @@
     group: "{{ sambadc_ntp_group }}"
     mode: "0440"
     force: true
-  when: "All" in ansible_run_tags
+  when: "'All' in ansible_run_tags"
 
 - name: "{{ '[NTPD] Set permission for directory' + SAMBA_STATEDIR + '/ntp_signd .' }}"
   ansible.builtin.file:
@@ -43,4 +43,4 @@
     owner: "root"
     group: "{{ sambadc_ntp_group }}"
     mode: "0750"
-  when: "All" in ansible_run_tags
+  when: "'All' in ansible_run_tags"

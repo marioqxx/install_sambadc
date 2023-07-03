@@ -16,6 +16,12 @@
 #   tags:
 #     - settings
 
+- name: "[MAIN] - Gather facts of installed packages."
+  ansible.builtin.package_facts:
+
+- name: "[MAIN] - Gather facts of services."
+  ansible.builtin.service_facts:
+
 - name: "[MAIN] - Sanity check variables given for minimum configuration."
   ansible.builtin.include_tasks: usage.yml
   tags:
