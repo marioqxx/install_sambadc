@@ -32,7 +32,7 @@
     dest: "{{ BINDDNS_DIR }}"
     owner: root
     group: bind
-    mode: "0644"
+    mode: u=rw,g=r,o=r
     remote_src: true
   when: sambadc_version.stdout is not match("14")
   tags:
@@ -114,11 +114,11 @@
   tags:
     - dns_bind_dlz
   loop:
-    - { path: "{{ BINDDNS_DIR }}", state: "directory", mode: "0770" }
-    - { path: "{{ BINDDNS_DIR }}/dns", state: "directory", mode: "0770" }
-    - { path: "{{ BINDDNS_DIR }}/dns/sam.ldb.d", state: "directory", mode: "0770" }
-    - { path: "{{ BINDDNS_DIR }}/dns.keytab", state: "file", mode: "0640" }
-    - { path: "{{ BINDDNS_DIR }}/dns/sam.ldb", state: "file", mode: "0660" }
+    - { path: "{{ BINDDNS_DIR }}", state: "directory", mode: "u=rwx,o=rwx,o=-" }
+    - { path: "{{ BINDDNS_DIR }}/dns", state: "directory", mode: "u=rwx,o=rwx,o=-" }
+    - { path: "{{ BINDDNS_DIR }}/dns/sam.ldb.d", state: "directory", mode: "u=rwx,o=rwx,o=-" }
+    - { path: "{{ BINDDNS_DIR }}/dns.keytab", state: "file", mode: "u=rwx,o=rwx,o=-" }
+    - { path: "{{ BINDDNS_DIR }}/dns/sam.ldb", state: "file", mode: "u=rwx,o=rwx,o=-" }
 
 - name: "[NAMED] - Listing files in BINDDNS_DIR/dns/sam.ldb.d/"
   ansible.builtin.find:
@@ -135,7 +135,7 @@
     state: file
     owner: root
     group: bind
-    mode: "0660"
+    mode: u=rw,g=rw,o=-
   tags:
     - dns_bind_dlz
   loop: "{{ db_files.files }}"

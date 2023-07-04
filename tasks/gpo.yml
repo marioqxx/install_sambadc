@@ -21,7 +21,7 @@
     path: "/tmp/{{ item | basename }}"
     owner: root
     group: root
-    mode: "0644"
+    mode: u=rw,g=r,o=r
     state: directory
   loop: "{{ sambadc_gpo_template }}"
   changed_when: false
@@ -35,7 +35,7 @@
     dest: "/tmp/{{ item | basename }}"
     owner: root
     group: root
-    mode: "0664"
+    mode: u=rw,g=rw,o=r
   loop: "{{ sambadc_gpo_template }}"
   changed_when: false
   when: sambadc_gpo_template is defined
@@ -78,7 +78,7 @@
     path: "/tmp/{{ item | basename }}"
     owner: root
     group: root
-    mode: "0644"
+    mode: u=rw,g=r,o=r
     state: directory
   loop: "{{ sambadc_gpo }}"
   changed_when: false
@@ -92,7 +92,7 @@
     dest: "/tmp/{{ item | basename }}"
     owner: root
     group: root
-    mode: "0664"
+    mode: u=rw,g=rw,o=r
   loop: "{{ sambadc_gpo }}"
   changed_when: false
   when: sambadc_gpo is defined
@@ -110,7 +110,7 @@
     path: "/tmp/policies"
     owner: root
     group: root
-    mode: "0664"
+    mode: u=rw,g=rw,o=r
     state: directory
   changed_when: false
   tags:

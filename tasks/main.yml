@@ -3,18 +3,6 @@
 # An existing configuration and database will be deleted and a new configuraiton created.
 #
 # ATTENTION: THIS WILL DELETE YOUR CURRENT CONFIGURED DC IRREVOCABLY.
-#     var: ansible_facts
-# - name: "[MAIN] - Debug"
-#   ansible.builtin.debug:
-#     var: sambadc_exportkeytab
-#     var: ansible_fact
-#   tags:
-#     - settings
-
-# - name: "[MAIN] - Debug"
-#   ansible.builtin.meta: end_play
-#   tags:
-#     - settings
 
 - name: "[MAIN] - Gather facts of installed packages."
   ansible.builtin.package_facts:
@@ -43,7 +31,7 @@
   tags:
     - dns_bind_dlz
 
-# Remove smbd, nmbd and winbind as well as systemd-resolved from starting and shut those
+# Remove smbd, nmbd and winbind as well as systemd-resolved, systemd-timesyncd from starting and shut those
 # services down. Note that DNS afterwards does not work anymore.
 - name: "[MAIN] - Prepare systemd settings and stop services."
   ansible.builtin.include_tasks: systemd.yml
@@ -66,7 +54,7 @@
     dest: /etc/resolv.conf
     owner: root
     group: root
-    mode: "0644"
+    mode: u=rw,g=r,o=r
 
 - name: "[MAIN] - Provision the new Domain Controller and create new Domain."
   ansible.builtin.command: >
@@ -91,14 +79,14 @@
   when: sambadc_type | lower == "join"
   changed_when: true
 
-- name: "[MAIN] - Copy the 'krb5.conf' file to /etc/."
+- name: "[MAIN] - Copy the 'krb5.conf' file to /etc/krb5.conf."
   ansible.builtin.copy:
     src: "{{ PRIVATE_DIR }}/krb5.conf"
     dest: /etc/krb5.conf
     remote_src: true
     owner: root
     group: root
-    mode: "0644"
+    mode: u=rw,g=r,o=r
 
 - name: "[MAIN] - (Re-)Start the Domain Controller."
   ansible.builtin.service:
@@ -119,7 +107,7 @@
     lstrip_blocks: true
     owner: root
     group: root
-    mode: "0644"
+    mode: u=rw,g=r,o=r
   when: sambadc_shares is defined
   tags:
     - shares
@@ -161,7 +149,7 @@
     dest: /etc/resolv.conf
     owner: root
     group: root
-    mode: "0644"
+    mode: u=rw,g=r,o=r
 
 # On debian based system, and if dhclient is configured, then add omit some DHCP-parameters
 # received. See: https://wiki.debian.org/resolv.conf
@@ -177,12 +165,19 @@
       supersede domain-name-servers 127.0.0.1;
   when: (ansible_facts.distribution | lower) is match ('debian')
 
+# For a fileserver-join, the script ends here. There are no SETTINGS or GPOs to set and
+# there are no checks.
+- name: "[MAIN] - The script for joining a Fileserver to the Domain ends here."
+  ansible.builtin.meta: end_play
+  when: sambadc_type | lower == "join"
+  tags:
+    - always
+
 # Check the functionality of the Domain Controller (member)
 - name: "[MAIN] - Check if the DC is operational and DNS works."
   ansible.builtin.include_tasks: checks.yml
   tags:
     - check
-    - join
 
 - name: "[MAIN] - Precautionary check of sysvol permissions."
   ansible.builtin.command: samba-tool ntacl sysvolcheck

@@ -13,6 +13,13 @@
   tags:
     - dns_bind_dlz
 
+- name: "[USAGE] - Check if fileshares are defined when a Fileserver shall be setup (type join)."
+  ansible.builtin.assert:
+    that:
+      - sambadc_shares is defined
+    fail_msg: "When 'sambadc_type' is set to 'join', than at least one fileshare must be configured."
+  when: sambadc_type | lower == "join"
+
 - name: "[USAGE] - Check interfaces and presence of bind only interfaces config parameter. (1/3)."
   ansible.builtin.meta: end_play
   when: ( ansible_facts.interfaces | length < 3 ) and ( "lo" not in ansible_facts.interfaces | lower )

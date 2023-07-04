@@ -11,7 +11,7 @@
         lstrip_blocks: true
         owner: root
         group: root
-        mode: "0644"
+        mode: u=rw,g=r,o=r
       changed_when: false
 
     - name: "[USAGE-POST] - Check temporarily created smb.conf with testparm."

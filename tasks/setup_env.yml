@@ -183,9 +183,9 @@
     mode: "{{ item.mode }}"
   when: sambadc_tls_cert is defined
   loop:
-    - { file: "{{ sambadc_tls_cert }}", mode: "0644" }
-    - { file: "{{ sambadc_tls_key }}", mode: "0600" }
-    - { file: "{{ sambadc_tls_ca }}", mode: "0644" }
+    - { file: "{{ sambadc_tls_cert }}", mode: "u=rw,g=r,o=r" }
+    - { file: "{{ sambadc_tls_key }}", mode: "u=rw,g=-,o=-" }
+    - { file: "{{ sambadc_tls_ca }}", mode: "u=rw,g=r,o=r" }
 
 - name: "[SETUP-ENV] - Concatenate Intermed CA Certificate file with Certificate file and copy to host."
   ansible.builtin.template:
@@ -193,7 +193,7 @@
     dest: "{{ PRIVATE_DIR }}/tls/{{ fname.split('.')[:-1] | join('.') }}.pem"
     owner: root
     group: root
-    mode: "0644"
+    mode: u=rw,g=r,o=r
   vars:
     fname: "{{ sambadc_tls_cert | basename }}"
     input_files: ["{{ sambadc_tls_cert }}", "{{ sambadc_tls_intermed }}"]
@@ -208,7 +208,7 @@
         dest: "{{ sambadc_tls_install_dir }}"
         owner: root
         group: root
-        mode: "0644"
+        mode: u=rw,g=r,o=r
 
     - name: "[SETUP-ENV] - Add Root CA Certificate file to trusted CA-store (1/2)."
       ansible.builtin.command: update-ca-certificates
@@ -224,7 +224,7 @@
     dest: "{{ sambadc_ldap_conf_file }}"
     owner: root
     group: root
-    mode: "0644"
+    mode: u=rw,g=r,o=r
 
 # Set limits.
 # ulimit -n 65536 or unlimited
