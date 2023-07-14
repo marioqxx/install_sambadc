@@ -27,6 +27,7 @@
       user::rwx
       user:root:rwx
       user:domain\040admins:rwx
+      user:BUILTIN\\users:x
       group::rwx
       group:users:r-x
       group:domain\040admins:rwx
@@ -56,6 +57,7 @@
       user:root:rwx
       user:NT\040Authority\\system:rwx
       user:domain\040admins:rwx
+      user:BUILTIN\\users:x
       group::rwx
       group:users:rwx
       group:NT\040Authority\\system:rwx

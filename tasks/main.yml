@@ -7,9 +7,6 @@
 - name: "[MAIN] - Gather facts of installed packages."
   ansible.builtin.package_facts:
 
-- name: "[MAIN] - Gather facts of services."
-  ansible.builtin.service_facts:
-
 - name: "[MAIN] - Sanity check variables given for minimum configuration."
   ansible.builtin.include_tasks: usage.yml
   tags:
@@ -33,6 +30,9 @@
 
 # Remove smbd, nmbd and winbind as well as systemd-resolved, systemd-timesyncd from starting and shut those
 # services down. Note that DNS afterwards does not work anymore.
+- name: "[MAIN] - Gather facts of services."
+  ansible.builtin.service_facts:
+
 - name: "[MAIN] - Prepare systemd settings and stop services."
   ansible.builtin.include_tasks: systemd.yml
   tags:
@@ -48,13 +48,25 @@
   ansible.builtin.set_fact:
     sambadc_dns_address: "{{ sambadc_forwarder }}"
 
-- name: "{MAIN] - Re-enable (static) DNS-resolution by writing '/etc/resolv.conf'."
+- name: "[MAIN] - Re-enable (static) DNS-resolution by writing '/etc/resolv.conf'."
   ansible.builtin.template:
     src: templates/resolv.conf.j2
     dest: /etc/resolv.conf
     owner: root
     group: root
     mode: u=rw,g=r,o=r
+
+- name: "[MAIN] - Check if the Domain-Controller is reachable and obtain FQDN for Domain join."
+  ansible.builtin.command: host -t SRV _ldap._tcp.{{ sambadc_realm }}
+  register: df_cmd
+  when: sambadc_type | lower == "join"
+  changed_when: true
+
+- name: "[MAIN] - Store Domain Controller FQDN to 'sambadc_fqdn' variable (join)."
+  ansible.builtin.set_fact:
+    sambadc_fqdn: "{{ (df_cmd.stdout | split(' '))[-1][:-1] }}"
+  when: sambadc_type | lower == "join"
+  changed_when: true
 
 - name: "[MAIN] - Provision the new Domain Controller and create new Domain."
   ansible.builtin.command: >

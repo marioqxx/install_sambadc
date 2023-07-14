@@ -3,8 +3,9 @@ server 127.127.1.0
 fudge  127.127.1.0 stratum 10
 
 # Where to retrieve the time from
+server {{ sambadc_fqdn }} iburst prefer
 {% for time_srv in sambadc_timeservers %}
-server {{ time_srv.name }} iburst prefer
+server {{ time_srv.name }} iburst
 {% endfor %}
 
 driftfile       {{ sambadc_ntp_driftfile }}
@@ -18,6 +19,7 @@ restrict default ignore
 restrict 127.0.0.1
 
 # Enable the time sources to only provide time to this host
+restrict {{ sambadc_fqdn }}   mask 255.255.255.255    nomodify notrap nopeer noquery
 {% for time_srv in sambadc_timeservers %}
 restrict {{ time_srv.name }}   mask 255.255.255.255    nomodify notrap nopeer noquery
 {% endfor %}
