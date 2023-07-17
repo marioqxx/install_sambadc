@@ -48,6 +48,18 @@
   tags:
     - dns_bind_dlz
 
+- name: "[USAGE] - Check if configured directories to copy keytabs to exist."
+  ansible.builtin.stat:
+    path: "{{ item.destination[0] | dirname }}"
+  register: df_cmd
+  failed_when: (df_cmd.stat.isdir is not defined) or (not df_cmd.stat.isdir)
+  loop: "{{ sambadc_exportkeytab }}"
+  when:
+    - (sambadc_exportkeytab is not string) and (sambadc_exportkeytab is not mapping) and (sambadc_exportkeytab is sequence)
+    - (item.destination is defined) and (item.destination | length) == 4
+  tags:
+    - settings
+
 - name: "[USAGE] - Check if TLS-certificates are correctly configured."
   ansible.builtin.assert:
     that:

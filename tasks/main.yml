@@ -11,6 +11,7 @@
   ansible.builtin.include_tasks: usage.yml
   tags:
     - dns_bind_dlz
+    - settings
 
 # Install the packages needed for a samba DC and if configured from additional repository.
 - name: "[MAIN] - Install the required packages and make other required/useful system-settings."
@@ -127,7 +128,7 @@
 - name: "[MAIN] - Write the smb.conf-file with the configured shares included."
   ansible.builtin.include_tasks: shares.yml
   when:
-    - item.type is defined and item.type in ['isHome', 'isRoaming']
+    - item.type is defined
     - sambadc_shares is defined
   loop: "{{ sambadc_shares }}"
   tags:
@@ -148,7 +149,7 @@
 
 - name: "[MAIN] - (re)start ntpd-Daemon."
   ansible.builtin.service:
-    name: "ntp"
+    name: "{{ 'ntp' if ansible_facts.distribution | lower is match('debian') else 'ntpsec' }}"
     state: restarted
 
 - name: "[MAIN] - set IP-address for local name resolution - Post-Provision."

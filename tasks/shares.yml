@@ -6,19 +6,51 @@
 # The samba-wiki suggests to set them via Windows. Here an alternative way is gone, which
 # works even when the DC is also used as fileserver for those directories.
 #
-# vfs_xattr:ignore system acl=yes may not be set (needs proof, but sound plausible).
+# vfs_xattr:ignore system acl=yes may not be set (needs proof, but sounds plausible).
+# For setting security.NTACL I have taken information from here:
+# https://github.com/thctlo/samba4/blob/master/samba-setup-share-folders.sh
+# https://wiki.samba.org/index.php/Setting_up_a_Share_Using_Windows_ACLs
 
-- name: "{{ '[SHARES] - Create and set permissions for isHome or isRoaming type share ' + item.path }}"
+# Obtian SIDs. Not used at the moment, but might be of help.
+# Source: https://github.com/thctlo/samba4/blob/master/samba-setup-share-folders.sh
+- name: "{{ '[SHARES] - Create and set permissions for share ' + item.path }}"
+  ansible.builtin.command: wbinfo --name-to-sid "{{ name_item }}"
+  register: df_cmd
+  loop:
+    - "\\Creator Owner"
+    - "Administrator"
+    - "NT Authority\\System"
+    - "Domain Admins"
+    - "Domain Users"
+  loop_control:
+    loop_var: name_item
+  changed_when: false
+  when: (item.type is search("isHome")) or (item.type is search("isRoaming"))
+  tags:
+    - shares
+
+# - name: "[SHARES] - Debug"
+#   ansible.builtin.debug:
+#     msg: "{{ name_item | split(' ') | first }}"
+#   loop: "{{ df_cmd.results | map(attribute='stdout') }}"
+#   loop_control:
+#     loop_var: name_item
+#   when: (item.type is search("isHome")) or (item.type is search("isRoaming"))
+#   tags:
+#     - shares
+
+- name: "{{ '[SHARES] - Create and set ACL-permissions for share ' + item.path }}"
   ansible.builtin.file:
     path: "{{ item.path }}"
     owner: root
     group: "Domain Admins"
     mode: u=rwx,g=rwx,o=x
     state: directory
+  when: item.type is search('isCreate')
   tags:
     - shares
 
-- name: "{{ '[SHARES] - Set isHome share Permissions for ' + item.path }}"
+- name: "{{ '[SHARES] - Set isHome share ACL-permissions for ' + item.path }}"
   ansible.builtin.command: setfacl --set-file=- "{{ item.path }}"
   args:
     stdin: |
@@ -27,7 +59,6 @@
       user::rwx
       user:root:rwx
       user:domain\040admins:rwx
-      user:BUILTIN\\users:x
       group::rwx
       group:users:r-x
       group:domain\040admins:rwx
@@ -41,11 +72,21 @@
       default:group:domain\040admins:rwx
       default:mask::rwx
       default:other::---
-  when: item.type is match("isHome")
   changed_when: true
+  when: item.type is search("isHome")
   tags:
     - shares
-      # flags: -s-
+
+# No SID needs to be inserted. When create with right ACLs, seem no SIDs needed.
+- name: "{{ '[SHARES] - Set isHome NTACL-xattr share Permissions for ' + item.path }}"
+  ansible.builtin.command: >
+    samba-tool ntacl set
+    "O:LAG:DAD:PAI(A;OICIIO;0x001f01ff;;;CO)(A;OICI;0x001f01ff;;;DA)(A;;0x001200a9;;;DU)"
+    "{{ item.path }}"
+  changed_when: true
+  when: item.type is search("isHome")
+  tags:
+    - shares
 
 - name: "{{ '[SHARES] - Set isRoaming share Permissions for ' + item.path }}"
   ansible.builtin.command: setfacl --set-file=- "{{ item.path }}"
@@ -57,7 +98,6 @@
       user:root:rwx
       user:NT\040Authority\\system:rwx
       user:domain\040admins:rwx
-      user:BUILTIN\\users:x
       group::rwx
       group:users:rwx
       group:NT\040Authority\\system:rwx
@@ -73,7 +113,18 @@
       default:group:domain\040admins:rwx
       default:mask::rwx
       default:other::---
-  when: item.type is match("isRoaming")
   changed_when: true
+  when: item.type is search("isRoaming")
+  tags:
+    - shares
+
+# No SID needs to be inserted. When create with right ACLs, seem no SIDs needed.
+- name: "{{ '[SHARES] - Set isRoaming NTACL-xattr share Permissions for ' + item.path }}"
+  ansible.builtin.command: >
+    samba-tool ntacl set
+    "O:LAG:DAD:PAI(A;OICIIO;0x001f01ff;;;CO)(A;OICI;0x001f01ff;;;DA)(A;OICI;0x001f01ff;;;SY)(A;;0x001200ad;;;DU)"
+    "{{ item.path }}"
+  changed_when: true
+  when: item.type is search("isRoaming")
   tags:
     - shares

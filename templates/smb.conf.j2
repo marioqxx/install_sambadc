@@ -21,7 +21,7 @@
         # https://wiki.samba.org/index.php/Setting_up_a_Share_Using_Windows_ACLs
         # https://wiki.samba.org/index.php/Setting_up_Samba_as_an_Active_Directory_Domain_Controller#Using_the_Domain_Controller_as_a_File_Server_.28Optional.29
         vfs objects = btrfs acl_xattr dfs_samba4
-        map acl inherit = yes 
+        map acl inherit = yes
 {% endif %}
 	tls priority = NORMAL:-VERS-TLS1.0:-VERS-TLS1.1
 {% if sambadc_tls_ca is defined %}
@@ -45,8 +45,8 @@
 [netlogon]
         path = {{ STATEDIR }}/sysvol/{{ sambadc_realm }}/scripts
         read only = No
-
 {% for share in sambadc_shares %}
+
 [{{ share["share"] }}]
 {% for key, value in share.items() %}
     {% if key not in ['type', 'share'] %}

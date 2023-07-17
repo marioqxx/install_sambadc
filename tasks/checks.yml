@@ -192,3 +192,19 @@
   when: sambadc_tls_ca is not defined
   tags:
     - check
+
+# Check Active-Directory user-integration into remote host via winbind
+# If this check fails, then check libnss-winbind and libpam-winbind are installed.
+- name: "[CHECK] - Check the existence of the krbtgt-user SID."
+  ansible.builtin.command: wbinfo --name-to-sid krbtgt
+  changed_when: false
+  tags:
+    - check
+
+# If this check fails, then check /etc/nsswitch.conf if winbind for name-lookup is configured, i.e.
+# includes winbind.
+- name: "[CHECK] - Check the existence of the krbtgt-user in the unix usernames."
+  ansible.builtin.command: getent passwd krbtgt
+  changed_when: false
+  tags:
+    - check
