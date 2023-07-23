@@ -41,6 +41,7 @@
     - ldap-utils
     - apparmor
     - unzip
+    - openssl
     # - python3-cryptography
   tags:
     - install

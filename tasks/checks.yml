@@ -1,5 +1,32 @@
 ---
 # After Provisioning, perform checks if the DC is up and running.
+# Check if hostname is correctly configured.
+- name: "[CHECK] - Check configued Domain Name via hostname command (1/4)."
+  ansible.builtin.command: hostname -d
+  register: df_cmd
+  changed_when: false
+  tags:
+    - check
+
+- name: "[CHECK] - Check configued Domain Name via hostname command (2/4)."
+  ansible.builtin.debug:
+    msg: "hostname -d does not return the Domain Name. Consider checking /etc/hosts or set hostname with hostnamectl."
+  changed_when: false
+  when: df_cmd.stdout is search(sambadc_realm, ignorecase=true)
+
+- name: "[CHECK] - Check configued FQDN via hostname command (3/4)."
+  ansible.builtin.command: hostname -f
+  register: df_cmd
+  changed_when: false
+  tags:
+    - check
+
+- name: "[CHECK] - Check configued FQDN via hostname command (4/4)."
+  ansible.builtin.debug:
+    msg: "hostname -d does not return the FQDN. Consider checking /etc/hosts or set hostname with hostnamectl."
+  changed_when: false
+  when: df_cmd.stdout is search(sambadc_fqdn, ignorecase=true)
+
 # Perform checks as to DNS resolution.
 - name: "[CHECK] - DNS-Lookup DC-services: ldap, TCP."
   ansible.builtin.command: testparm -s /etc/samba/smb.conf

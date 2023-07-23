@@ -63,6 +63,7 @@
   when: sambadc_type | lower == "join"
   changed_when: true
 
+# @TODO: Check is still needed.
 - name: "[MAIN] - Store Domain Controller FQDN to 'sambadc_fqdn' variable (join)."
   ansible.builtin.set_fact:
     sambadc_fqdn: "{{ (df_cmd.stdout | split(' '))[-1][:-1] }}"
@@ -101,18 +102,6 @@
     group: root
     mode: u=rw,g=r,o=r
 
-- name: "[MAIN] - (Re-)Start the Domain Controller."
-  ansible.builtin.service:
-    name: "samba-ad-dc"
-    state: restarted
-
-# Setup the DNS through NAMED/BIND9 if configured.
-- name: "[MAIN] - Setup the names/bind9 DNS server if configured."
-  ansible.builtin.include_tasks: named.yml
-  when: sambadc_dns in [ "BIND9_FLATIFLE", "BIND9_DLZ" ]
-  tags:
-    - dns_bind_dlz
-
 - name: "[MAIN] - Write the smb.conf-file with the configured shares included."
   ansible.builtin.template:
     src: templates/smb.conf.j2
@@ -125,7 +114,70 @@
   tags:
     - shares
 
-- name: "[MAIN] - Write the smb.conf-file with the configured shares included."
+# TODO: Restart only if needed, otherwise just reload config (if needed) - dependent on provided tags
+- name: "[MAIN] - First start of the newly provisioned Domain Controller."
+  ansible.builtin.service:
+    name: "samba-ad-dc"
+    state: started
+  when: sambadc_type | lower == "new"
+
+# Setup the DNS through NAMED/BIND9 if configured.
+- name: "[MAIN] - Setup the names/bind9 DNS server if configured."
+  ansible.builtin.include_tasks: named.yml
+  when: sambadc_dns in [ "BIND9_FLATIFLE", "BIND9_DLZ" ]
+  tags:
+    - dns_bind_dlz
+
+# In case the name-service-switch is not properly configured, add winbind-name lookup.
+# This is needed for setting permissions for the isHome and IsRoaming shares.
+# Source: https://wiki.ubuntuusers.de/Howto/Samba-Fileserver_im_Active_Directory/
+#         https://bugs.launchpad.net/ubuntu/+source/samba/+bug/1980246
+# Note: This bug persists in ubuntu server 20.04 and 22.04 and will be fixed only in
+#       ubuntu server 23.04, which ships with samba 4.17.
+- name: "[MAIN] - Add winbind user name-lookup to /etc/nsswitch.conf (1/2)."
+  ansible.builtin.lineinfile:
+    path: /etc/nsswitch.conf
+    regexp: ^(passwd:.*winbind.*)
+    line: "# \\1"
+    backrefs: true
+  check_mode: true
+  register: df_cmd
+  tags:
+    - shares
+
+- name: "[MAIN] - Add winbind user name-lookup to /etc/nsswitch.conf (2/2)."
+  ansible.builtin.lineinfile:
+    path: /etc/nsswitch.conf
+    regexp: ^(passwd:.*)
+    line: \1 winbind
+    backrefs: true
+  when: not df_cmd.changed
+  tags:
+    - shares
+
+- name: "[MAIN] - Add winbind group name-lookup to /etc/nsswitch.conf (1/2)."
+  ansible.builtin.lineinfile:
+    path: /etc/nsswitch.conf
+    regexp: ^(group:.*winbind.*)
+    line: "# \\1"
+    backrefs: true
+  check_mode: true
+  register: df_cmd
+  tags:
+    - shares
+
+- name: "[MAIN] - Add winbind group name-lookup to /etc/nsswitch.conf (2/2)."
+  ansible.builtin.lineinfile:
+    path: /etc/nsswitch.conf
+    regexp: ^(group:.*)
+    line: \1 winbind
+    backrefs: true
+  when: not df_cmd.changed
+  tags:
+    - shares
+
+# Requires, that winbind is up and running and nsswitch finds Adctive Directory groups and users.
+- name: "[MAIN] - Create the configured shares included in smb.conf."
   ansible.builtin.include_tasks: shares.yml
   when:
     - item.type is defined
@@ -134,13 +186,22 @@
   tags:
     - shares
 
-# Now its time to start the Domain-controller.
-- name: "[MAIN] - (Re-)Start the Domain Controller."
-  ansible.builtin.service:
-    name: "samba-ad-dc"
-    state: restarted
-  tags:
-    - shares
+# Now its time to start the Domain-controller or the joined File-Server with configured file-shares.
+# - name: "[MAIN] - Restart the Domain Controller or File Server."
+#   ansible.builtin.service:
+#     name: "samba-ad-dc"
+#     state: restarted
+#   tags:
+#     - shares
+
+# Write /etc/hosts, so that the domain is correctly added to hostname-command, but don't stop executing
+# if not successful.
+- name: "[MAIN] - Add FQDN to /etc/hosts for hostname-lookup on remote host."
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    search_string: '127.0.1.1'
+    line: "127.0.1.1 {{ sambadc_fqdn }}"
+  failed_when: false
 
 # Setup the Network-time Protocol daemon, which will be used by the clients for time-
 # synchronization with signed messages.

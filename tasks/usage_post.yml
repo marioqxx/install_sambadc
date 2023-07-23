@@ -38,3 +38,17 @@
   when: iface.ipv4.prefix not in [ '8', '16', '24' ]
   tags:
     - dns_bind_dlz
+
+# Safety-check, if DNS-port is not occupied by still another running daemon.
+- name: "[USAGE-POST] - Check port 53 availability for DNS activation during Domain Controller provisioning (1/2)."
+  ansible.builtin.command: ss -tulpen '( dport = :53 or sport = :53 )'
+  register: df_cmd
+  changed_when: false
+  tags:
+    - dns_bind_dlz
+
+- name: "[USAGE-POST] - Check port 53 availability for DNS activation during Domain Controller provisioning (2/2)."
+  ansible.builtin.meta: end_play
+  when: (df_cmd.stdout_lines | length) <= 1
+  tags:
+    - dns_bind_dlz
