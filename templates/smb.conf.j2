@@ -16,6 +16,11 @@
 {% if sambadc_dns in [ "BIND9", "BIND9_DLZ" ] %}
         server services = -dns
 {% endif %}
+        # Configure winbind for kerberos-based login and SSO.
+        kerberos method = secrets and keytab
+        winbind refresh tickets = yes
+        template shell = /bin/bash
+        template homedir = /home/%D@%U
 {% if sambadc_shares is defined %}
         # For shares on the DC, Windows ACLs are mandatory
         # https://wiki.samba.org/index.php/Setting_up_a_Share_Using_Windows_ACLs
@@ -23,6 +28,7 @@
         vfs objects = btrfs acl_xattr dfs_samba4
         map acl inherit = yes
 {% endif %}
+        # TLS configuration
 	tls priority = NORMAL:-VERS-TLS1.0:-VERS-TLS1.1
 {% if sambadc_tls_ca is defined %}
 	tls cafile = tls/{{ sambadc_tls_ca | basename }}
