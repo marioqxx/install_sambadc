@@ -22,6 +22,10 @@ sambadc_ntp_group: "ntpsec"
 sambadc_tls_ca_install_system: false
 sambadc_tls_install_dir: "/usr/local/share/ca-certificates"
 
+# Kerberos hardening: disable ntlm-authentication and RC4-cipher.
+# Source: https://wiki.samba.org/index.php/Samba_Security_Documentation#Disabling_RC4
+sambadc_security_hardening: false
+
 # LDAP
 sambadc_ldap_conf_file: "/etc/ldap/ldap.conf"
 

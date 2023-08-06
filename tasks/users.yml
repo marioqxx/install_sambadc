@@ -35,6 +35,8 @@
     state: directory
   when: (item.create_home_path is string) and (item.create_home_path | length > 0)
   loop: "{{ sambadc_users | default({}) }}"
+  loop_control:
+    label: "{{ 'Create home directory ' ~ item.create_home_path ~ ' for user: ' ~ item.username }}"
   tags:
     - settings
 
@@ -42,6 +44,8 @@
   ansible.builtin.command: setfacl -m m::rwx "{{ item.create_home_path }}"
   when: (item.create_home_path is string) and (item.create_home_path | length > 0)
   loop: "{{ sambadc_users | default({}) }}"
+  loop_control:
+    label: "{{ 'Set ACL for home directory ' ~ item.create_home_path }}"
   changed_when: true
   tags:
     - settings
@@ -59,6 +63,8 @@
     - (item.displayName is string) and (item.displayName | length > 0)
   changed_when: df_cmd.stdout is match("modifying entry")
   loop: "{{ sambadc_users | default({}) }}"
+  loop_control:
+    label: "{{ 'Set displayname for user ' ~ item.username }}"
   register: df_cmd
   tags:
     - settings
@@ -94,6 +100,8 @@
 - name: "[USERS] - Setting up Group-membership for Users."
   ansible.builtin.command: samba-tool group addmembers "{{ item.1 }}" "{{ item.0.username }}"
   loop: "{{ sambadc_usergroupmembership | subelements('members') }}"
+  loop_control:
+    label: "{{ 'Add for user ' ~ item.0.username ~ '  group-membership to group ' ~ item.1 }}"
   when:
     - item.0.username in domain_users.stdout_lines
     - item.0.username not in domain_group_memberships[item.1]

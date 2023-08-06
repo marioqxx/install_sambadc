@@ -21,6 +21,13 @@
         winbind refresh tickets = yes
         template shell = /bin/bash
         template homedir = /home/%D@%U
+{% if sambadc_security_hardening %}
+        # Disable NTLM and RC4-cipher
+        # https://wiki.samba.org/index.php/Samba_Security_Documentation#Disabling_RC4
+        reject md5 clients = true
+        reject md5 server = true
+        ntlm auth = disabled
+{% endif %}
 {% if sambadc_shares is defined %}
         # For shares on the DC, Windows ACLs are mandatory
         # https://wiki.samba.org/index.php/Setting_up_a_Share_Using_Windows_ACLs

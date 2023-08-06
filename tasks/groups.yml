@@ -39,6 +39,8 @@
 - name: "[GROUPS] - Setting up Group-membership with other groups."
   ansible.builtin.command: samba-tool group addmembers "{{ item.0.group }}" "{{ item.1 }}"
   loop: "{{ sambadc_groupmembership | subelements('members') }}"
+  loop_control:
+    label: "{{ 'Add group ' ~ item.1 ~ ' as member of group ' ~ item.0.group }}"
   when:
     - item.1 in domain_groups.stdout_lines
     - item.1 not in domain_group_memberships[item.0.group]

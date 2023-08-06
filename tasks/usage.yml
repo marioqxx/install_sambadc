@@ -54,6 +54,8 @@
   register: df_cmd
   failed_when: (df_cmd.stat.isdir is not defined) or (not df_cmd.stat.isdir)
   loop: "{{ sambadc_exportkeytab }}"
+  loop_control:
+    label: "Checking existence of directory {{ item.destination[0] | dirname }} for service {{ item.service }} and keytab-file {{ item.destination[0] }}"
   when:
     - (sambadc_exportkeytab is not string) and (sambadc_exportkeytab is not mapping) and (sambadc_exportkeytab is sequence)
     - (item.destination is defined) and (item.destination | length) == 4
@@ -68,6 +70,13 @@
       - sambadc_tls_key is defined
     fail_msg: "TLS-certificates are defined. This requires all three parameters sambadc_tls_ca, sambadc_tls_cert and sambadc_tls_key to be set."
   when: (sambadc_tls_ca is defined) or (sambadc_tls_cert is defined) or (samba_tls_key is defined)
+
+- name: "[USAGE] - Check if CA-certificates is configured for system-wide install."
+  ansible.builtin.assert:
+    that:
+      - sambadc_tls_ca is defined
+    fail_msg: "When sambadc_tls_ca_install_system is set to true, then sambadc_tls_ca must be set."
+  when: sambadc_tls_ca_install_system
 
 # Requires openssl install on control host.
 - name: "[USAGE] - Check provided certificate chain."
