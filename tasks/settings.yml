@@ -49,7 +49,9 @@
     - settings
 
 - name: "[SETTINGS] - Remove RC4-cipher from exported keytab."
-  when: sambadc_security_hardening
+  when:
+    - (sambadc_exportkeytab is not string) and (sambadc_exportkeytab is not mapping) and (sambadc_exportkeytab is sequence)
+    - sambadc_security_hardening
   tags:
     - settings
   block:
@@ -80,7 +82,7 @@
       loop_control:
         label: "{{ 'Delete file:' ~ item.keytabfilename ~ '_sec' }}"
 
-    # {{ str }} needs to be in vars-block, putting the template directoy into stdin does not work.
+    # {{ str }} needs to be in vars-block. Putting the template directly into stdin does not work.
     - name: "[SETTINGS] - Remove RC4-cipher: Create new temporary keytab with removed entries. (4/4)."
       ansible.builtin.command: ktutil
       register: df_cmd

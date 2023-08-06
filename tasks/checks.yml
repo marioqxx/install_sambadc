@@ -27,7 +27,7 @@
   changed_when: false
   when: df_cmd.stdout is search(sambadc_fqdn, ignorecase=true)
 
-# Perform checks as to DNS resolution.
+# Perform checks related to DNS resolution.
 - name: "[CHECK] - DNS-Lookup DC-services: ldap, TCP."
   ansible.builtin.command: testparm -s /etc/samba/smb.conf
   changed_when: false
@@ -85,23 +85,32 @@
 #   tags:
 #     - check
 
-# Perform checks as to Kerberos.
+# Perform checks related to Kerberos.
 - name: "[CHECK] - Check Kerberos authentication."
   tags:
     - check
   block:
     - name: "[CHECK] - Kerberos Request a ticket."
-      ansible.builtin.shell: |
-        set -o pipefail
-        echo {{ sambadc_admin_password }} | kinit -c /tmp/krb5cc_1000 Administrator@{{ sambadc_realm | upper }}
+      ansible.builtin.command: kinit -c /tmp/krbcc_1000 Administrator@{{ sambadc_realm | upper }}
       args:
-        executable: /bin/bash
+        stdin: "{{ sambadc_admin_password }}"
       changed_when: false
 
     - name: "[CHECK] - Kerberos check ticket in Cache."
       ansible.builtin.command: klist -c /tmp/krb5cc_1000
       failed_when: false
       changed_when: false
+
+    - name: "[CHECK] - Kerberos check exported keytabs and principals."
+      ansible.builtin.command: kvno -k "{{ PRIVATE_DIR }}"/"{{ keytab }}" "{{ item.0.service }}"/"{{ item.1 }}"
+      loop: "{{ sambadc_exportkeytab | subelements('principals') }}"
+      loop_control:
+        label: "{{ 'Checking principal ' ~ item.0.service ~ '/' ~ item.1 ~ ' in keytab ' ~ keytab }}"
+      changed_when: false
+      when:
+        - (sambadc_exportkeytab is not string) and (sambadc_exportkeytab is not mapping) and (sambadc_exportkeytab is sequence)
+      vars:
+        keytab: "{{ item.0.keytabfilename }}{{ '_sec' if sambadc_security_hardening else '' }}"
 
     # Perform connection check
     # Does not work (yet) due tho this issue: https://groups.google.com/g/linux.debian.bugs.dist/c/aNuQQ77KLzk
@@ -110,7 +119,7 @@
     #  failed_when: false
     #  changed_when: false
 
-  # Always delete the Kerberos ticket form the Credential-Cache.
+  # Always delete the Kerberos ticket from the Credential-Cache.
   always:
     - name: "[CHECK] - Kerberos destroy ticket Cache."
       ansible.builtin.command: kdestroy -c /tmp/krb5cc_1000
@@ -128,12 +137,16 @@
   args:
     stdin: "{{ sambadc_admin_password }}"
   changed_when: false
+  tags:
+    - check
 
 - name: "[CHECK] - Test connection to netlogon via smbclient and username/password."
   ansible.builtin.command: smbclient //"{{ sambadc_fqdn }}"/netlogon -c "ls" -U Administrator
   args:
     stdin: "{{ sambadc_admin_password }}"
   changed_when: false
+  tags:
+    - check
 
 # Check SSL access to LDAP (if configured).
 - name: "[CHECK] - Check certificate verification and chain of trust."
@@ -143,11 +156,10 @@
     - sambadc_tls_ca is defined
   block:
     - name: "[CHECK] - Connect via openssl s_client from localhost."
-      ansible.builtin.shell: |
-        set -o pipefail
-        echo "Q" | openssl s_client -brief -CAfile "{{ PRIVATE_DIR }}"/tls/"{{ sambadc_tls_ca | basename }}" -connect localhost:636
+      ansible.builtin.command: >
+        openssl s_client -brief -CAfile "{{ PRIVATE_DIR }}"/tls/"{{ sambadc_tls_ca | basename }}" -connect localhost:636
       args:
-        executable: /bin/bash
+        stdin: Q
       register: df_cmd
       changed_when: false
 
@@ -158,11 +170,10 @@
         msg: "Certificate verification failed."
 
     - name: "[CHECK] - Connect via openssl s_client from localhost and use of system installed trusted root-CA."
-      ansible.builtin.shell: |
-        set -o pipefail
-        echo "Q" | openssl s_client -brief -connect localhost:636
+      ansible.builtin.command: >
+        openssl s_client -brief -connect localhost:636
       args:
-        executable: /bin/bash
+        stdin: Q
       register: df_cmd
       changed_when: false
       when: sambadc_tls_ca_install_system
@@ -175,13 +186,12 @@
       when: sambadc_tls_ca_install_system
 
     - name: "[CHECK] - Connect via openssl s_client from control-host."
-      ansible.builtin.shell: |
-        set -o pipefail
-        echo "Q" | openssl s_client -brief -CAfile {{ sambadc_tls_ca }} -connect {{ sambadc_fqdn }}:636
+      ansible.builtin.command: >
+        openssl s_client -brief -CAfile "{{ sambadc_tls_ca }}" -connect "{{ sambadc_fqdn }}":636
+      args:
+        stdin: Q
       delegate_to: localhost
       become: false
-      args:
-        executable: /bin/bash
       register: df_cmd
       changed_when: false
 
