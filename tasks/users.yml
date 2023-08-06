@@ -21,6 +21,8 @@
     - (item.surname is string) and (item.surname | length > 0)
     - item.username not in domain_users.stdout_lines
   loop: "{{ sambadc_users | default({}) }}"
+  loop_control:
+    label: "{{ 'Create user ' ~ item.username ~ ' and its user-profile in AD' }}"
   register: df_cmd
   changed_when: true
   tags:
@@ -36,7 +38,7 @@
   when: (item.create_home_path is string) and (item.create_home_path | length > 0)
   loop: "{{ sambadc_users | default({}) }}"
   loop_control:
-    label: "{{ 'Create home directory ' ~ item.create_home_path ~ ' for user: ' ~ item.username }}"
+    label: "{{ 'Create home directory ' ~ item.create_home_path ~ ' for user ' ~ item.username }}"
   tags:
     - settings
 
