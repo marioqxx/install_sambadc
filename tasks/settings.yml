@@ -43,16 +43,20 @@
   changed_when: (df_cmd.rc == 0) and (df_cmd.stdout | lower) is search("export")
   loop: "{{ sambadc_exportkeytab | subelements('principals') }}"
   loop_control:
-    label: "Export principal {{ item.0.service }}/{{ item.1 }} to keytab {{ PRIVATE_DIR}}/{{ item.0.keytabfilename }}"
+    label: "Export principal {{ item.0.service }}/{{ item.1 }} to keytab {{ PRIVATE_DIR }}/{{ item.0.keytabfilename }}"
   when: (sambadc_exportkeytab is not string) and (sambadc_exportkeytab is not mapping) and (sambadc_exportkeytab is sequence)
   tags:
     - settings
 
 - name: "[SETTINGS] - Remove RC4-cipher from exported keytab."
+  when: sambadc_security_hardening
+  tags:
+    - settings
   block:
     - name: "[SETTINGS] - Remove RC4-cipher: Read keytab listing (1/4)."
       ansible.builtin.command: klist -ke "{{ PRIVATE_DIR }}/{{ item.keytabfilename }}"
       register: df_cmd
+      changed_when: false
       loop: "{{ sambadc_exportkeytab }}"
       loop_control:
         label: "List keytab {{ PRIVATE_DIR }}/{{ item.keytabfilename }} entries."
@@ -60,17 +64,17 @@
     # The slot-number derived is to be used for the delent-command in ktutil
     - name: "[SETTINGS] - Remove RC4-cipher: Get keytab slots to be deleted. (2/4)."
       ansible.builtin.set_fact:
-        keytab_slot: "{{ keytab_slot | default([]) + [{'keytabfilename': item.item.keytabfilename, 'delentries': entrylist }] }}"
+        keytab_slot: "{{ keytab_slot | default([]) + [{'keytabfilename': item.item.keytabfilename, 'delentries': entrylist}] }}"
       loop: "{{ df_cmd.results }}"
       loop_control:
         label: "Get slots for keytabfile {{ item.item.keytabfilename }} for SPN: {{ item.item.service }}"
       vars:
-        entries: "{{ range(-2, item.stdout_lines | length - 2 ) | zip(item.stdout_lines) | select('search','DEPRECATED') }}"
+        entries: "{{ range(-2, item.stdout_lines | length - 2) | zip(item.stdout_lines) | select('search', 'DEPRECATED') }}"
         entrylist: "{{ entries | reverse | flatten | select('integer') }}"
 
     - name: "[SETTINGS] - Remove RC4-cipher: Delete temporary keytab with removed entries. (3/4)."
       ansible.builtin.file:
-        path: "{{ PRIVATE_DIR}}/{{ item.keytabfilename }}_sec"
+        path: "{{ PRIVATE_DIR }}/{{ item.keytabfilename }}_sec"
         state: absent
       loop: "{{ keytab_slot }}"
       loop_control:
@@ -80,20 +84,18 @@
     - name: "[SETTINGS] - Remove RC4-cipher: Create new temporary keytab with removed entries. (4/4)."
       ansible.builtin.command: ktutil
       register: df_cmd
+      changed_when: true
       loop: "{{ keytab_slot }}"
       loop_control:
         label: "{{ 'New keytab-file with removed RC4-cipher: ' ~ item.keytabfilename ~ '_sec' }}"
       args:
         stdin: |
-          rkt "{{ PRIVATE_DIR}}/{{ item.keytabfilename }}"
+          rkt "{{ PRIVATE_DIR }}/{{ item.keytabfilename }}"
           {{ str }}
-          wkt "{{ PRIVATE_DIR}}/{{ item.keytabfilename }}_sec"
+          wkt "{{ PRIVATE_DIR }}/{{ item.keytabfilename }}_sec"
           quit
       vars:
         str: "{{ 'delent ' ~ item.delentries | join('\ndelent ') }}"
-  when: sambadc_security_hardening
-  tags:
-    - settings
 
 - name: "[SETTINGS] - Copy configured keytabs to the configured directories."
   ansible.builtin.copy:
