@@ -49,6 +49,7 @@
 
 - name: "[USAGE-POST] - Check port 53 availability for DNS activation during Domain Controller provisioning (2/2)."
   ansible.builtin.meta: end_play
-  when: (df_cmd.stdout_lines | length) <= 1
+#  when: (df_cmd.stdout_lines | length) > 1
+  when: df_cmd.stdout is match(':53')
   tags:
     - dns_bind_dlz

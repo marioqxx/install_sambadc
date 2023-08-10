@@ -90,19 +90,19 @@
   tags:
     - check
   block:
-    - name: "[CHECK] - Kerberos Request a ticket."
-      ansible.builtin.command: kinit -c /tmp/krbcc_1000 Administrator@{{ sambadc_realm | upper }}
+    - name: "[CHECK] - Kerberos Request TGT-ticket."
+      ansible.builtin.command: kinit -c /tmp/krb5cc_1000 Administrator@{{ sambadc_realm | upper }}
       args:
         stdin: "{{ sambadc_admin_password }}"
       changed_when: false
 
     - name: "[CHECK] - Kerberos check ticket in Cache."
       ansible.builtin.command: klist -c /tmp/krb5cc_1000
-      failed_when: false
       changed_when: false
 
     - name: "[CHECK] - Kerberos check exported keytabs and principals."
-      ansible.builtin.command: kvno -k "{{ PRIVATE_DIR }}"/"{{ keytab }}" "{{ item.0.service }}"/"{{ item.1 }}"
+      ansible.builtin.command: >
+        kvno -c /tmp/krb5cc_1000 -k "{{ PRIVATE_DIR }}"/"{{ keytab }}" "{{ item.0.service }}"/"{{ item.1 }}"
       loop: "{{ sambadc_exportkeytab | subelements('principals') }}"
       loop_control:
         label: "{{ 'Checking principal ' ~ item.0.service ~ '/' ~ item.1 ~ ' in keytab ' ~ keytab }}"

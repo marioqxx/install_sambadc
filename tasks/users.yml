@@ -10,12 +10,12 @@
 - name: "[USERS] - Create Users."
   ansible.builtin.command: >
     samba-tool user create {{ item.username }} {{ item.password }} --use-username-as-cn
-      {{ ('--given-name=\"' ~ item.given_name ~ '\" ') if item.given_name is defined }}
-      {{ ('--surname=\"' ~ item.surname ~ '\" ') if item.surname is defined }}
-      {{ ('--mail-address=\"' ~ item.email ~ '\" ') if item.email is defined }}
-      {{ ('--profile-path=\"' ~ item.profile_path ~ '\" ') if item.profile_path is defined }}
-      {{ ('--home-drive=\"' ~ item.home_drive ~ '\" ') if item.home_drive is defined }}
-      {{ ('--home-directory=\"' ~ item.home_path ~ '\" ') if item.home_path is defined }}
+      {{ ('--given-name="' ~ item.given_name ~ '" ') if item.given_name is defined }}
+      {{ ('--surname="' ~ item.surname ~ '" ') if item.surname is defined }}
+      {{ ('--mail-address="' ~ item.email ~ '" ') if item.email is defined }}
+      {{ ('--profile-path="' ~ item.profile_path ~ '" ') if item.profile_path is defined }}
+      {{ ('--home-drive="' ~ item.home_drive ~ '" ') if item.home_drive is defined }}
+      {{ ('--home-directory="' ~ item.home_path ~ '" ') if item.home_path is defined }}
   when:
     - (item.password is string) and (item.password | length > 0)
     - item.username not in domain_users.stdout_lines

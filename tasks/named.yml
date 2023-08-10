@@ -80,29 +80,6 @@
   tags:
     - dns_bind_dlz
 
-# Create Reverse zone and associated entry for Reverse resolution on host.
-- name: "[NAMED] - Add a Reversezone."
-  ansible.builtin.command: >
-    samba-tool dns zonecreate localhost {{ ipv4ptr }} -U Administrator
-  args:
-    stdin: "{{ sambadc_admin_password }}"
-  changed_when: (df_cmd.rc == 0)
-  failed_when: (df_cmd.rc != 0) and ((df_cmd.stderr | lower) is not search("exists"))
-  register: df_cmd
-  tags:
-    - dns_bind_dlz
-
-- name: "[NAMED] - Add the host to the Reversezone."
-  ansible.builtin.command: >
-    samba-tool dns add localhost {{ ipv4ptr }} {{ ipv4host }} PTR {{ sambadc_fqdn }} -U Administrator
-  args:
-    stdin: "{{ sambadc_admin_password }}"
-  changed_when: (df_cmd.rc == 0)
-  failed_when: (df_cmd.rc != 0) and ((df_cmd.stderr | lower) is not search("exists"))
-  register: df_cmd
-  tags:
-    - dns_bind_dlz
-
 # Start checking filesystem-permissions for bind9
 - name: "[NAMED] - Set file permissions for the bind-files that Samba created during provisioning (bugfix 14535)."
   ansible.builtin.file:
@@ -114,11 +91,13 @@
   tags:
     - dns_bind_dlz
   loop:
-    - { path: "{{ BINDDNS_DIR }}", state: "directory", mode: "u=rwx,o=rwx,o=-" }
-    - { path: "{{ BINDDNS_DIR }}/dns", state: "directory", mode: "u=rwx,o=rwx,o=-" }
-    - { path: "{{ BINDDNS_DIR }}/dns/sam.ldb.d", state: "directory", mode: "u=rwx,o=rwx,o=-" }
-    - { path: "{{ BINDDNS_DIR }}/dns.keytab", state: "file", mode: "u=rwx,o=rwx,o=-" }
-    - { path: "{{ BINDDNS_DIR }}/dns/sam.ldb", state: "file", mode: "u=rwx,o=rwx,o=-" }
+    - { path: "{{ BINDDNS_DIR }}", state: "directory", mode: "u=rwx,g=rwx,o=-" }
+    - { path: "{{ BINDDNS_DIR }}/dns", state: "directory", mode: "u=rwx,g=rwx,o=-" }
+    - { path: "{{ BINDDNS_DIR }}/dns/sam.ldb.d", state: "directory", mode: "u=rwx,g=rwx,o=-" }
+    - { path: "{{ BINDDNS_DIR }}/dns.keytab", state: "file", mode: "u=rwx,g=rwx,o=-" }
+    - { path: "{{ BINDDNS_DIR }}/dns/sam.ldb", state: "file", mode: "u=rwx,g=rwx,o=-" }
+  loop_control:
+    label: "Setting permissions for file/directory {{ item.path }} to {{ item.mode }}"
 
 - name: "[NAMED] - Listing files in BINDDNS_DIR/dns/sam.ldb.d/"
   ansible.builtin.find:
@@ -139,6 +118,8 @@
   tags:
     - dns_bind_dlz
   loop: "{{ db_files.files }}"
+  loop_control:
+    label: "Checking permissions for file/directory {{ item.path }}"
 
 - name: "[NAMED] - Checking configuration file."
   ansible.builtin.command: named-checkconf
@@ -151,5 +132,28 @@
   ansible.builtin.service:
     name: named
     state: restarted
+  tags:
+    - dns_bind_dlz
+
+# Create Reverse zone and associated entry for Reverse resolution on host.
+- name: "[NAMED] - Add a Reversezone."
+  ansible.builtin.command: >
+    samba-tool dns zonecreate localhost {{ ipv4ptr }} -U Administrator
+  args:
+    stdin: "{{ sambadc_admin_password }}"
+  changed_when: (df_cmd.rc == 0)
+  failed_when: (df_cmd.rc != 0) and ((df_cmd.stderr | lower) is not search("exists"))
+  register: df_cmd
+  tags:
+    - dns_bind_dlz
+
+- name: "[NAMED] - Add the host to the Reversezone."
+  ansible.builtin.command: >
+    samba-tool dns add localhost {{ ipv4ptr }} {{ ipv4host }} PTR {{ sambadc_fqdn }} -U Administrator
+  args:
+    stdin: "{{ sambadc_admin_password }}"
+  changed_when: (df_cmd.rc == 0)
+  failed_when: (df_cmd.rc != 0) and ((df_cmd.stderr | lower) is not search("exists"))
+  register: df_cmd
   tags:
     - dns_bind_dlz

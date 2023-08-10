@@ -6,7 +6,9 @@
 {% endif %}
         netbios name = {{ inventory_hostname | upper }}
         realm = {{ sambadc_realm | upper }}
+{% if sambadc_type | lower == "new" %}
         server role = active directory domain controller
+{% endif %}
         workgroup = {{ sambadc_workgroup }}
         idmap_ldb:use rfc2307 = yes
 {% if sambadc_bind_interfaces is defined %}
@@ -24,9 +26,12 @@
 {% if sambadc_security_hardening %}
         # Disable NTLM and RC4-cipher
         # https://wiki.samba.org/index.php/Samba_Security_Documentation#Disabling_RC4
+{% if sambadc_type | lower == "new" %}
         reject md5 clients = true
+{% else %}
         reject md5 server = true
-        ntlm auth = disabled
+{% endif %}
+        # ntlm auth = disabled
 {% endif %}
 {% if sambadc_shares is defined %}
         # For shares on the DC, Windows ACLs are mandatory

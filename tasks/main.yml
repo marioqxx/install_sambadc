@@ -247,12 +247,6 @@
   tags:
     - always
 
-# Check the functionality of the Domain Controller (member)
-- name: "[MAIN] - Check if the DC is operational and DNS works."
-  ansible.builtin.include_tasks: checks.yml
-  tags:
-    - check
-
 - name: "[MAIN] - Precautionary check of sysvol permissions."
   ansible.builtin.command: samba-tool ntacl sysvolcheck
   changed_when: true
@@ -268,6 +262,12 @@
   when: sambadc_type | lower == "new"
   tags:
     - settings
+
+# Check the functionality of the Domain Controller (member)
+- name: "[MAIN] - Check if the DC is operational and DNS works."
+  ansible.builtin.include_tasks: checks.yml
+  tags:
+    - check
 
 # Create users and groups in the new Domain Controller.
 - name: "[MAIN] - Create groups and group-memberships for the new Domain Controller."
