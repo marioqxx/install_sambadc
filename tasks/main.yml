@@ -186,14 +186,6 @@
   tags:
     - shares
 
-# Now its time to start the Domain-controller or the joined File-Server with configured file-shares.
-# - name: "[MAIN] - Restart the Domain Controller or File Server."
-#   ansible.builtin.service:
-#     name: "samba-ad-dc"
-#     state: restarted
-#   tags:
-#     - shares
-
 # Write /etc/hosts, so that the domain is correctly added to hostname-command, but don't stop executing
 # if not successful.
 - name: "[MAIN] - Add FQDN to /etc/hosts for hostname-lookup on remote host."
