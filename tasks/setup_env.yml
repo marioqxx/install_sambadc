@@ -124,7 +124,7 @@
 
 - name: "[SETUP-ENV] - Create Variables and set to associated directory."
   ansible.builtin.set_fact:
-    "{{ item }}": "{{ df_cmd.stdout_lines | select('match', '.*' + item + '.*') | join(' ') | split(':') | last | trim }}"
+    "{{ item }}": "{{ df_cmd.stdout_lines | select('match', '.*' ~ item ~ '.*') | join(' ') | split(':') | last | trim }}"
   loop:
     - SBINDIR
     - BINDIR

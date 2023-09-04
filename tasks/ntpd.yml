@@ -33,7 +33,7 @@
     force: true
   when: sambadc_type | lower == "new"
 
-- name: "{{ '[NTPD] Set permission for directory' + SAMBA_STATEDIR + '/ntp_signd .' }}"
+- name: "{{ '[NTPD] Set permission for directory ' ~ STATEDIR ~ '/ntp_signd .' }}"
   ansible.builtin.file:
     path: "{{ STATEDIR }}/ntp_signd"
     state: directory

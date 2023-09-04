@@ -5,7 +5,7 @@
 # IPv4 may also need some revision for e.g. 192.168.0.0/16 subnets the PTR may lack a leading zero.
 - name: "[NAMED] - Build the IPv4 & IPv6 PTR-record."
   ansible.builtin.set_fact:
-    ipv4net: "{{ iface.ipv4.network | replace('.0', '') + '.' }}"
+    ipv4net: "{{ iface.ipv4.network | replace('.0', '') ~ '.' }}"
     ipv4ptr: "{{ iface.ipv4.network | ansible.utils.ipaddr('revdns') | replace('0.', '') }}"
     ipv6ptr: "{{ iface.ipv6[0].address | ansible.utils.ipaddr('revdns') }}"
   tags:
@@ -75,7 +75,7 @@
 - name: "[NAMED] - Uncomment in BINDDNS_DIR the respective version in named.conf-file."
   ansible.builtin.replace:
     dest: "{{ BINDDNS_DIR }}/named.conf"
-    regexp: "{{ '^(\\s*)#(.*' + sambadc_bindversion[0] + '_' + sambadc_bindversion[1] + '.*)$' }}"
+    regexp: "{{ '^(\\s*)#(.*' ~ sambadc_bindversion[0] ~ '_' ~ sambadc_bindversion[1] ~ '.*)$' }}"
     replace: '\1\2'
   tags:
     - dns_bind_dlz

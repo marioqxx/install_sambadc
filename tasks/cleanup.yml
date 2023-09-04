@@ -26,7 +26,7 @@
 
 - name: "[CLEANUP] - Delete samba sysvol folder(s)."
   ansible.builtin.file:
-    path: "{{ STATEDIR + '/sysvol' }}"
+    path: "{{ STATEDIR ~ '/sysvol' }}"
     state: absent
   tags:
     - cleanup
