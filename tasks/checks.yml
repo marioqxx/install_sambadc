@@ -1,106 +1,106 @@
 ---
 # After Provisioning, perform checks if the DC is up and running.
 # Check if hostname is correctly configured.
-- name: "[CHECK] - Check configued Domain Name via hostname command (1/4)."
+- name: CHECK | Check configued Domain Name via hostname command (1/4).
   ansible.builtin.command: hostname -d
   register: df_cmd
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - Check configued Domain Name via hostname command (2/4)."
+- name: CHECK | Check configued Domain Name via hostname command (2/4).
   ansible.builtin.debug:
     msg: "hostname -d does not return the Domain Name. Consider checking /etc/hosts or set hostname with hostnamectl."
   changed_when: false
   when: df_cmd.stdout is search(sambadc_realm, ignorecase=true)
 
-- name: "[CHECK] - Check configued FQDN via hostname command (3/4)."
+- name: CHECK | Check configued FQDN via hostname command (3/4).
   ansible.builtin.command: hostname -f
   register: df_cmd
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - Check configued FQDN via hostname command (4/4)."
+- name: CHECK | Check configued FQDN via hostname command (4/4).
   ansible.builtin.debug:
-    msg: "hostname -d does not return the FQDN. Consider checking /etc/hosts or set hostname with hostnamectl."
+    msg: "hostname -f does not return the FQDN. Consider checking /etc/hosts or set hostname with hostnamectl."
   changed_when: false
   when: df_cmd.stdout is search(sambadc_fqdn, ignorecase=true)
 
 # Perform checks related to DNS resolution.
-- name: "[CHECK] - DNS-Lookup DC-services: ldap, TCP."
+- name: CHECK | DNS-Lookup for DC-service ldap via TCP protocol.
   ansible.builtin.command: testparm -s /etc/samba/smb.conf
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - DNS-Lookup DC-services: ldap, TCP."
+- name: CHECK | DNS-Lookup for DC-service ldap via TCP protocol.
   ansible.builtin.command: host -t SRV "_ldap._tcp.{{ sambadc_realm }}"
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - DNS-Lookup DC-services: kerberos, UDP."
+- name: CHECK | DNS-Lookup for DC-service kerberos via UDP protocol.
   ansible.builtin.command: host -t SRV "_kerberos._udp.{{ sambadc_realm }}"
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - DNS-Lookup DC-services: gc, TCP."
+- name: CHECK | DNS-Lookup for DC-service gc via TCP protocol.
   ansible.builtin.command: host -t SRV "_gc._tcp.{{ sambadc_realm }}"
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - DNS-Lookup A-Record of DC, returns IP-Address."
+- name: CHECK | DNS-Lookup A-Record of DC, returns IP-Address.
   ansible.builtin.command: host -t A "{{ sambadc_fqdn }}"
   register: df_cmd
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - DNS-Reverse-Lookup DC (ipv4 only)."
+- name: CHECK | DNS-Reverse-Lookup DC (ipv4 only).
   ansible.builtin.command: host "{{ df_cmd.stdout | regex_findall('[0-9]+.[0-9]+.[0-9]+.[0-9]+') | join }}"
   failed_when: false
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - DNS-Lookup checking configured forward DNS-server."
+- name: CHECK | DNS-Lookup checking configured forward DNS-server.
   ansible.builtin.command: host -t A "{{ sambadc_check_forwardzone_host }}"
   failed_when: false
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - Check presence of DNS-tool nsupdate command from dnsutils."
+- name: CHECK | Check presence of DNS-tool nsupdate command from dnsutils.
   ansible.builtin.command: nsupdate -V
   changed_when: false
   tags:
     - check
 
-# - name: "[CHECK] - Check DNS-update functionality."
+# - name: "CHECK | Check DNS-update functionality."
 #   ansible.builtin.command: samba_dnsupdate --all-names
 #   changed_when: false
 #   tags:
 #     - check
 
 # Perform checks related to Kerberos.
-- name: "[CHECK] - Check Kerberos authentication."
+- name: CHECK | Check Kerberos authentication.
   tags:
     - check
   block:
-    - name: "[CHECK] - Kerberos Request TGT-ticket."
+    - name: CHECK | Kerberos Request TGT-ticket.
       ansible.builtin.command: kinit -c /tmp/krb5cc_1000 Administrator@{{ sambadc_realm | upper }}
       args:
         stdin: "{{ sambadc_admin_password }}"
       changed_when: false
 
-    - name: "[CHECK] - Kerberos check ticket in Cache."
+    - name: CHECK | Kerberos check ticket in Cache.
       ansible.builtin.command: klist -c /tmp/krb5cc_1000
       changed_when: false
 
-    - name: "[CHECK] - Kerberos check exported keytabs and principals."
+    - name: CHECK | Kerberos check exported keytabs and principals.
       ansible.builtin.command: >
         kvno -c /tmp/krb5cc_1000 -k "{{ PRIVATE_DIR }}"/"{{ keytab }}" "{{ item.0.service }}"/"{{ item.1 }}"
       loop: "{{ sambadc_exportkeytab | subelements('principals') }}"
@@ -114,25 +114,25 @@
 
     # Perform connection check
     # Does not work (yet) due tho this issue: https://groups.google.com/g/linux.debian.bugs.dist/c/aNuQQ77KLzk
-    # - name: "[CHECK] - Test connection via Kerveros authentication."
+    # - name: "CHECK | Test connection via Kerveros authentication."
     #  ansible.builtin.command: smbclient -L "{{ sambadc_fqdn }}" --use-krb5-ccache=/tmp/krb5cc_1000
     #  failed_when: false
     #  changed_when: false
 
   # Always delete the Kerberos ticket from the Credential-Cache.
   always:
-    - name: "[CHECK] - Kerberos destroy ticket Cache."
+    - name: CHECK | Kerberos destroy ticket Cache.
       ansible.builtin.command: kdestroy -c /tmp/krb5cc_1000
       changed_when: false
 
 # Some Checks with smbclient.
-- name: "[CHECK] - Test anonymous connect to DC."
+- name: CHECK | Test anonymous connect to DC.
   ansible.builtin.command: smbclient -L localhost -N
   changed_when: false
   tags:
     - check
 
-- name: "[CHECK] - Test connection via smbclient and username/password."
+- name: CHECK | Test connection via smbclient and username/password.
   ansible.builtin.command: smbclient -L "{{ sambadc_fqdn }}" -U Administrator
   args:
     stdin: "{{ sambadc_admin_password }}"
@@ -140,7 +140,7 @@
   tags:
     - check
 
-- name: "[CHECK] - Test connection to netlogon via smbclient and username/password."
+- name: CHECK | Test connection to netlogon via smbclient and username/password.
   ansible.builtin.command: smbclient //"{{ sambadc_fqdn }}"/netlogon -c "ls" -U Administrator
   args:
     stdin: "{{ sambadc_admin_password }}"
@@ -149,13 +149,13 @@
     - check
 
 # Check SSL access to LDAP (if configured).
-- name: "[CHECK] - Check certificate verification and chain of trust."
+- name: CHECK | Check certificate verification and chain of trust.
   tags:
     - check
   when:
     - sambadc_tls_ca is defined
   block:
-    - name: "[CHECK] - Connect via openssl s_client from localhost."
+    - name: CHECK | Connect via openssl s_client from localhost.
       ansible.builtin.command: >
         openssl s_client -brief -CAfile "{{ PRIVATE_DIR }}"/tls/"{{ sambadc_tls_ca | basename }}" -connect localhost:636
       args:
@@ -163,13 +163,13 @@
       register: df_cmd
       changed_when: false
 
-    - name: "[CHECK] - Check if Certificate chain of trust was OK."
+    - name: CHECK | Check if Certificate chain of trust was OK.
       ansible.builtin.assert:
         that:
           - df_cmd.stdout is not match("Verification: OK")
         msg: "Certificate verification failed."
 
-    - name: "[CHECK] - Connect via openssl s_client from localhost and use of system installed trusted root-CA."
+    - name: CHECK | Connect via openssl s_client from localhost and use of system installed trusted root-CA.
       ansible.builtin.command: >
         openssl s_client -brief -connect localhost:636
       args:
@@ -178,14 +178,14 @@
       changed_when: false
       when: sambadc_tls_ca_install_system
 
-    - name: "[CHECK] - Check if Certificate chain of trust was OK."
+    - name: CHECK | Check if Certificate chain of trust was OK.
       ansible.builtin.assert:
         that:
           - df_cmd.stdout is not match("Verification: OK")
         msg: "Certificate verification failed."
       when: sambadc_tls_ca_install_system
 
-    - name: "[CHECK] - Connect via openssl s_client from control-host."
+    - name: CHECK | Connect via openssl s_client from control-host.
       ansible.builtin.command: >
         openssl s_client -brief -CAfile "{{ sambadc_tls_ca }}" -connect "{{ sambadc_fqdn }}":636
       args:
@@ -195,7 +195,7 @@
       register: df_cmd
       changed_when: false
 
-    - name: "[CHECK] - Check if Certificate chain of trust was OK."
+    - name: CHECK | Check if Certificate chain of trust was OK.
       ansible.builtin.assert:
         that:
           - df_cmd.stdout is not match("Verification: OK")
@@ -204,7 +204,7 @@
     # Check LDAP configuration (TLS).
     # If this check fails, then call ldapsearch with -d 1 and check the certificate.
     # The Common-name and the canonicalized hostname potentially do not match.
-    - name: "[CHECK] - Make an ldapsearch query for group-names using TLS (1/2)."
+    - name: CHECK | Make an ldapsearch query for group-names using TLS (1/2).
       ansible.builtin.command:
         ldapsearch -H ldaps://localhost:636 -b "cn=Users,{{ sambadc_ldap }}"
                    -D "cn=Administrator,cn=Users,{{ sambadc_ldap }}"
@@ -212,7 +212,7 @@
                    -s sub "(objectClass=group)"
       changed_when: false
 
-    - name: "[CHECK] - Make an ldapsearch query for group-names using TLS and ldap.conf config (2/2)."
+    - name: CHECK | Make an ldapsearch query for group-names using TLS and ldap.conf config (2/2).
       ansible.builtin.command:
         ldapsearch -D "cn=Administrator,cn=Users,{{ sambadc_ldap }}"
                    -w "{{ sambadc_admin_password }}"
@@ -220,7 +220,7 @@
       changed_when: false
 
 # Check LDAP configuration (non-TLS).
-- name: "[CHECK] - Make an (unsecure) ldapsearch query for group-names, using ldap.conf."
+- name: CHECK | Make an (unsecure) ldapsearch query for group-names, using ldap.conf.
   ansible.builtin.command:
     ldapsearch -D "cn=Administrator,cn=Users,{{ sambadc_ldap }}"
                -w "{{ sambadc_admin_password }}"
@@ -232,7 +232,7 @@
 
 # Check Active-Directory user-integration into remote host via winbind
 # If this check fails, then check libnss-winbind and libpam-winbind are installed.
-- name: "[CHECK] - Check the existence of the krbtgt-user SID."
+- name: CHECK | Check the existence of the krbtgt-user SID.
   ansible.builtin.command: wbinfo --name-to-sid krbtgt
   changed_when: false
   tags:
@@ -240,7 +240,7 @@
 
 # If this check fails, then check /etc/nsswitch.conf if winbind for name-lookup is configured, i.e.
 # includes winbind.
-- name: "[CHECK] - Check the existence of the krbtgt-user in the unix usernames."
+- name: CHECK | Check the existence of the krbtgt-user in the unix usernames.
   ansible.builtin.command: getent passwd krbtgt
   changed_when: false
   tags:

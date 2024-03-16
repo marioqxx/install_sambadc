@@ -1,6 +1,6 @@
 ---
 # Prepare the system by installing required packages and make certain system-wide settings.
-- name: "[SETUP-ENV] - Add backports repository."
+- name: SETUP_ENV | Add backports repository.
   ansible.builtin.apt_repository:
     repo: 'deb http://deb.debian.org/debian bullseye-backports main'
     state: present
@@ -10,7 +10,7 @@
     - install
 
 # Update packages cache and install required packages.
-- name: "[SETUP-ENV] - Update packages cache."
+- name: SETUP_ENV | Update packages cache.
   ansible.builtin.apt:
     update_cache: true
     cache_valid_time: 86400
@@ -19,7 +19,7 @@
   tags:
     - install
 
-- name: "[SETUP-ENV] - Install samba packages."
+- name: SETUP_ENV | Install samba packages.
   ansible.builtin.apt:
     name: "{{ item }}"
     state: present
@@ -46,7 +46,7 @@
   tags:
     - install
 
-- name: "[SETUP-ENV] - Install bind packages."
+- name: SETUP_ENV | Install bind packages.
   ansible.builtin.apt:
     name: "{{ item }}"
     state: present
@@ -59,7 +59,7 @@
     - dns_bind_dlz
     - install
 
-- name: "[SETUP-ENV] - Obtain named version (1/2)."
+- name: SETUP_ENV | Obtain named version (1/2).
   ansible.builtin.command: named -v
   register: df_cmd
   changed_when: false
@@ -67,7 +67,7 @@
   tags:
     - dns_bind_dlz
 
-- name: "[SETUP-ENV] - Obtain named version (2/2)."
+- name: SETUP_ENV | Obtain named version (2/2).
   ansible.builtin.set_fact:
     sambadc_bindversion: "{{ df_cmd.stdout | regex_search('BIND.([0-9]+).([0-9]+).([0-9]+)', '\\1', '\\2', '\\3') }}"
   changed_when: false
@@ -75,35 +75,35 @@
   tags:
     - dns_bind_dlz
 
-- name: "[SETUP-ENV] - Packages Autoclean and Autoremove."
+- name: SETUP_ENV | Packages Autoclean and Autoremove.
   ansible.builtin.apt:
     autoclean: true
     autoremove: true
 
-- name: "[SETUP-ENV] - Obtain list of installed packages."
+- name: SETUP_ENV | Obtain list of installed packages.
   ansible.builtin.package_facts:
     manager: auto
 
-- name: "[SETUP-ENV] - Obtain installed Samba-Version. Needed for some bugfixes."
+- name: SETUP_ENV | Obtain installed Samba-Version. Needed for some bugfixes.
   ansible.builtin.command: samba -V
   register: sambadc_version
   changed_when: false
   tags:
     - dns_bind_dlz
 
-- name: "[SETUP-ENV] - Update libraries."
+- name: SETUP_ENV | Update libraries.
   ansible.builtin.command: ldconfig
   changed_when: true
 
 # Get the interface. Needed for creation of reverse-zone and entry for bind9/named.
-- name: "[SETUP-ENV] - Get interface IP-addresses when bind interfaces only is defined."
+- name: SETUP_ENV | Get interface IP-addresses when bind interfaces only is defined.
   ansible.builtin.set_fact:
     iface: "{{ ansible_facts[sambadc_bind_interfaces] }}"
   when: sambadc_bind_interfaces is defined
   tags:
     - dns_bind_dlz
 
-- name: "[SETUP-ENV] - Get interface IP-addresses when only one interface is present."
+- name: SETUP_ENV | Get interface IP-addresses when only one interface is present.
   ansible.builtin.set_fact:
     iface: "{{ ansible_facts[ansible_facts.interfaces | reject('match', 'lo') | join] }}"
   when: sambadc_bind_interfaces is not defined
@@ -111,7 +111,7 @@
     - dns_bind_dlz
 
 # Read the various directories Samba uses.
-- name: "[SETUP-ENV] - Obtain samba-files and/or directories to delete."
+- name: SETUP_ENV | Obtain samba-files and/or directories to delete.
   ansible.builtin.command: smbd -b
   register: df_cmd
   changed_when: false
@@ -122,7 +122,7 @@
     - shares
     - settings
 
-- name: "[SETUP-ENV] - Create Variables and set to associated directory."
+- name: SETUP_ENV | Create Variables and set to associated directory.
   ansible.builtin.set_fact:
     "{{ item }}": "{{ df_cmd.stdout_lines | select('match', '.*' ~ item ~ '.*') | join(' ') | split(':') | last | trim }}"
   loop:
@@ -151,7 +151,7 @@
     - settings
 
 # Directories returned form call smbd -b. Double-check presence of mandatory, because used, directories. Probably not needed.
-- name: "[SETUP-ENV] - Check samba returned required directories."
+- name: SETUP_ENV | Check samba returned required directories.
   ansible.builtin.assert:
     that:
       - BINDDNS_DIR is defined
@@ -165,7 +165,7 @@
 
 # Early binding to IPv6 during DHCP-address assignment, which may not be complete
 # at startup when "samba-ad-dc"-service starts.
-- name: "[SETUP-ENV] - Allow early bind to IPv6 interface."
+- name: SETUP_ENV | Allow early bind to IPv6 interface.
   ansible.posix.sysctl:
     name: net.ipv6.ip_nonlocal_bind
     value: "1"
@@ -175,7 +175,7 @@
 
 # Copy the certificates if configured and if an intermed-CA is defined, concatenate
 # the certificate to include the intermed-ca certificate.
-- name: "[SETUP-ENV] - Copy Certificate files to host."
+- name: SETUP_ENV | Copy Certificate files to host.
   ansible.builtin.copy:
     src: "{{ item.file }}"
     dest: "{{ PRIVATE_DIR }}/tls/"
@@ -188,7 +188,7 @@
     - { file: "{{ sambadc_tls_key }}", mode: "u=rw,g=-,o=-" }
     - { file: "{{ sambadc_tls_ca }}", mode: "u=rw,g=r,o=r" }
 
-- name: "[SETUP-ENV] - Concatenate Intermed CA Certificate file with Certificate file and copy to host."
+- name: SETUP_ENV | Concatenate Intermed CA Certificate file with Certificate file and copy to host.
   ansible.builtin.template:
     src: templates/concatenate.j2
     dest: "{{ PRIVATE_DIR }}/tls/{{ fname.split('.')[:-1] | join('.') }}.pem"
@@ -200,10 +200,10 @@
     input_files: ["{{ sambadc_tls_cert }}", "{{ sambadc_tls_intermed }}"]
   when: sambadc_tls_intermed is defined
 
-- name: "[SETUP-ENV] - Install Root-CA certificate in system wide trusted CA-store."
+- name: SETUP_ENV | Install Root-CA certificate in system wide trusted CA-store.
   when: sambadc_tls_ca_install_system
   block:
-    - name: "[SETUP-ENV] - Copy Root CA Certificate file to host trusted CA-store."
+    - name: SETUP_ENV | Copy Root CA Certificate file to host trusted CA-store.
       ansible.builtin.copy:
         src: "{{ sambadc_tls_ca }}"
         dest: "{{ sambadc_tls_install_dir }}"
@@ -211,15 +211,15 @@
         group: root
         mode: u=rw,g=r,o=r
 
-    - name: "[SETUP-ENV] - Add Root CA Certificate file to trusted CA-store (1/2)."
+    - name: SETUP_ENV | Add Root CA Certificate file to trusted CA-store (1/2).
       ansible.builtin.command: update-ca-certificates
       changed_when: true
 
-    - name: "[SETUP-ENV] - Add Root CA Certificate file to trusted CA-store (2/2)."
+    - name: SETUP_ENV | Add Root CA Certificate file to trusted CA-store (2/2).
       ansible.builtin.command: dpkg-reconfigure -u -p critical ca-certificates
       changed_when: true
 
-- name: "[SETUP-ENV] - Write ldap.conf-file with settings. Configuring TLS is strongly recommended."
+- name: SETUP_ENV | Write ldap.conf-file with settings. Configuring TLS is strongly recommended.
   ansible.builtin.template:
     src: templates/ldap.conf.j2
     dest: "{{ sambadc_ldap_conf_file }}"
@@ -232,12 +232,12 @@
 # https://serverfault.com/questions/325608/samba-stuck-at-maximum-of-1024-open-files
 # https://www.vivaolinux.com.br/topico/Debian/erro-rlimit_max-(16384)-Samba-PDC
 # https://superuser.com/questions/740000/modify-and-apply-limits-conf-without-reboot
-- name: "[SETUP-ENV] - Setup pam-limits, include pam_limits.so library in pam configuration."
+- name: SETUP_ENV | Setup pam-limits, include pam_limits.so library in pam configuration.
   ansible.builtin.lineinfile:
     path: /etc/pam.d/common-session
     line: 'session required pam_limits.so'
 
-- name: "[SETUP-ENV] - Setup pam-limits, in /etc/security/limits.conf."
+- name: SETUP_ENV | Setup pam-limits, in /etc/security/limits.conf.
   community.general.pam_limits:
     domain: "{{ item.user }}"
     limit_type: "{{ item.type }}"

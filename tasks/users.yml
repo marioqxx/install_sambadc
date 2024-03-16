@@ -1,13 +1,13 @@
 ---
 # Start creating the users and their membership to groups.
-- name: "[USERS] - Obtaining existing Users."
+- name: USERS | Obtaining existing Users.
   ansible.builtin.command: samba-tool user list
   register: domain_users
   changed_when: false
   tags:
     - settings
 
-- name: "[USERS] - Create Users."
+- name: USERS | Create Users.
   ansible.builtin.command: >
     samba-tool user create {{ item.username }} {{ item.password }} --use-username-as-cn
       {{ ('--given-name="' ~ item.given_name ~ '" ') if item.given_name is defined }}
@@ -27,7 +27,7 @@
   tags:
     - settings
 
-- name: "[USERS] - Create Users Home-directory."
+- name: USERS | Create Users Home-directory.
   ansible.builtin.file:
     path: "{{ item.create_home_path }}"
     owner: "{{ item.username }}"
@@ -41,7 +41,7 @@
   tags:
     - settings
 
-- name: "[USERS] - Modify the Permission (Mask) of the created Users Home-directory."
+- name: USERS | Modify the Permission (Mask) of the created Users Home-directory.
   ansible.builtin.command: setfacl -m m::rwx "{{ item.create_home_path }}"
   when: (item.create_home_path is string) and (item.create_home_path | length > 0)
   loop: "{{ sambadc_users | default({}) }}"
@@ -52,7 +52,7 @@
     - settings
 
 # The command samba-tool user add does not support the displayName-attribute.
-- name: "[USERS] - For created Users add attribute displayname if configured."
+- name: USERS | For created Users add attribute displayname if configured.
   ansible.builtin.command:
     cmd: ldapmodify -D "cn=Administrator,cn=Users,{{ sambadc_ldap }}" -w "{{ sambadc_admin_password }}"
     stdin: |
@@ -70,21 +70,21 @@
   tags:
     - settings
 
-- name: "[USERS] - Re-Obtaining existing Users."
+- name: USERS | Re-Obtaining existing Users.
   ansible.builtin.command: samba-tool user list
   register: domain_users
   changed_when: false
   tags:
     - settings
 
-- name: "[USERS] - Re-Obtaining existing Groups."
+- name: USERS | Re-Obtaining existing Groups.
   ansible.builtin.command: samba-tool group list
   register: domain_groups
   changed_when: false
   tags:
     - settings
 
-- name: "[USERS] - Reading existing Group-memberships."
+- name: USERS | Reading existing Group-memberships.
   ansible.builtin.command: samba-tool group listmembers "{{ item }}"
   register: domain_group_membership
   loop: "{{ sambadc_usergroupmembership | map(attribute='members') | flatten | unique }}"
@@ -92,13 +92,13 @@
   tags:
     - settings
 
-- name: "[USERS] - Obtaining existing Group-memberships."
+- name: USERS | Obtaining existing Group-memberships.
   ansible.builtin.set_fact:
     domain_group_memberships: "{{ domain_group_membership.results | items2dict(key_name='item', value_name='stdout_lines') }}"
   tags:
     - settings
 
-- name: "[USERS] - Setting up Group-membership for Users."
+- name: USERS | Setting up Group-membership for Users.
   ansible.builtin.command: samba-tool group addmembers "{{ item.1 }}" "{{ item.0.username }}"
   loop: "{{ sambadc_usergroupmembership | subelements('members') }}"
   loop_control:

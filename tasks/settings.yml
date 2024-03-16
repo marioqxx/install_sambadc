@@ -1,12 +1,12 @@
 ---
 # Set the password-restrictions to a low level.
-- name: "[SETTINGS] - Disable password expiration for the Administrator account."
+- name: SETTINGS | Disable password expiration for the Administrator account.
   ansible.builtin.command: samba-tool user setexpiry Administrator --noexpiry
   changed_when: true
   tags:
     - settings
 
-- name: "[SETTINGS] - Disable password history at the domain level."
+- name: SETTINGS | Disable password history at the domain level.
   ansible.builtin.command: samba-tool domain passwordsettings set --"{{ item.setting }}"="{{ item.value }}"
   loop:
     - { setting: "complexity", value: "off" }
@@ -20,7 +20,7 @@
 
 # Export all configured keytabs.
 # see ansible-docs at playbooks_tests#type-tests for how to identify list type of variable.
-- name: "[SETTINGS] - Create SPN if not (implicit) existent."
+- name: SETTINGS | Create SPN if not (implicit) existent.
   ansible.builtin.command: >
     samba-tool spn add "{{ item.0.service }}/{{ item.1 }}@{{ sambadc_realm | upper }}" "{{ item.1 | split('.') | first }}$"
   register: df_cmd
@@ -35,7 +35,7 @@
   tags:
     - settings
 
-- name: "[SETTINGS] - Export configured keytabs to PRIVATE_DIR."
+- name: SETTINGS | Export configured keytabs to PRIVATE_DIR.
   ansible.builtin.command: >
     samba-tool domain exportkeytab "{{ PRIVATE_DIR }}/{{ item.0.keytabfilename }}"
        --principal="{{ item.0.service }}/{{ item.1 }}"
@@ -48,14 +48,14 @@
   tags:
     - settings
 
-- name: "[SETTINGS] - Remove RC4-cipher from exported keytab."
+- name: SETTINGS | Remove RC4-cipher from exported keytab.
   when:
     - (sambadc_exportkeytab is not string) and (sambadc_exportkeytab is not mapping) and (sambadc_exportkeytab is sequence)
     - sambadc_security_hardening
   tags:
     - settings
   block:
-    - name: "[SETTINGS] - Remove RC4-cipher: Read keytab listing (1/4)."
+    - name: SETTINGS | Remove RC4-cipher - Read keytab listing (1/4).
       ansible.builtin.command: klist -ke "{{ PRIVATE_DIR }}/{{ item.keytabfilename }}"
       register: df_cmd
       changed_when: false
@@ -64,7 +64,7 @@
         label: "List keytab {{ PRIVATE_DIR }}/{{ item.keytabfilename }} entries."
 
     # The slot-number derived is to be used for the delent-command in ktutil
-    - name: "[SETTINGS] - Remove RC4-cipher: Get keytab slots to be deleted. (2/4)."
+    - name: SETTINGS | Remove RC4-cipher - Get keytab slots to be deleted. (2/4).
       ansible.builtin.set_fact:
         keytab_slot: "{{ keytab_slot | default([]) + [{'keytabfilename': item.item.keytabfilename, 'delentries': entrylist}] }}"
       loop: "{{ df_cmd.results }}"
@@ -74,7 +74,7 @@
         entries: "{{ range(-2, item.stdout_lines | length - 2) | zip(item.stdout_lines) | select('search', 'DEPRECATED') }}"
         entrylist: "{{ entries | reverse | flatten | select('integer') }}"
 
-    - name: "[SETTINGS] - Remove RC4-cipher: Delete temporary keytab with removed entries. (3/4)."
+    - name: SETTINGS | Remove RC4-cipher - Delete temporary keytab with removed entries. (3/4).
       ansible.builtin.file:
         path: "{{ PRIVATE_DIR }}/{{ item.keytabfilename }}_sec"
         state: absent
@@ -83,7 +83,7 @@
         label: "{{ 'Delete file:' ~ item.keytabfilename ~ '_sec' }}"
 
     # {{ str }} needs to be in vars-block. Putting the template directly into stdin does not work.
-    - name: "[SETTINGS] - Remove RC4-cipher: Create new temporary keytab with removed entries. (4/4)."
+    - name: SETTINGS | Remove RC4-cipher - Create new temporary keytab with removed entries. (4/4).
       ansible.builtin.command: ktutil
       register: df_cmd
       changed_when: true
@@ -99,7 +99,7 @@
       vars:
         str: "{{ 'delent ' ~ item.delentries | join('\ndelent ') }}"
 
-- name: "[SETTINGS] - Copy configured keytabs to the configured directories."
+- name: SETTINGS | Copy configured keytabs to the configured directories.
   ansible.builtin.copy:
     src: "{{ PRIVATE_DIR }}/{{ item.keytabfilename }}{{ '_sec' if sambadc_security_hardening else '' }}"
     dest: "{{ item.destination[0] }}"
@@ -117,7 +117,7 @@
     - settings
 
 # Set the SeDiskOperatorPrivilege for user Administrator
-- name: "[SETTINGS] - Set SeDiskOperatorPrivilege for 'Domain Admins'-group."
+- name: SETTINGS | Set SeDiskOperatorPrivilege for 'Domain Admins'-group.
   ansible.builtin.command: >
     net rpc rights grant "{{ sambadc_workgroup ~ '\Domain Admins' }}" SeDiskOperatorPrivilege --user "{{ sambadc_workgroup ~ '\Administrator' }}"
   args:

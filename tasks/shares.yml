@@ -14,7 +14,7 @@
 # Obtian SIDs. Not used at the moment, but might be of help later with BACKUP-function
 # and preserving certain internal values, such that the DC-"BACKUP" is a true BACKUP.
 # Source: https://github.com/thctlo/samba4/blob/master/samba-setup-share-folders.sh
-- name: "{{ '[SHARES] - Create and set permissions for share ' ~ item.path }}"
+- name: "{{ 'SHARES | Create and set permissions for share ' ~ item.path }}"
   ansible.builtin.command: wbinfo --name-to-sid "{{ name_item }}"
   register: df_cmd
   loop:
@@ -30,7 +30,7 @@
   tags:
     - shares
 
-# - name: "[SHARES] - Debug"
+# - name: "SHARES | Debug"
 #   ansible.builtin.debug:
 #     msg: "{{ name_item | split(' ') | first }}"
 #   loop: "{{ df_cmd.results | map(attribute='stdout') }}"
@@ -40,7 +40,7 @@
 #   tags:
 #     - shares
 
-- name: "{{ '[SHARES] - Create and set ACL-permissions for share ' ~ item.path }}"
+- name: "{{ 'SHARES | Create and set ACL-permissions for share ' ~ item.path }}"
   ansible.builtin.file:
     path: "{{ item.path }}"
     owner: root
@@ -52,7 +52,7 @@
     - shares
 
 # Added x-rights for Domain Computers to avoid flooding permission-denied messages to log.smbd.
-- name: "{{ '[SHARES] - Set isHome share ACL-permissions for ' ~ item.path }}"
+- name: "{{ 'SHARES | Set isHome share ACL-permissions for ' ~ item.path }}"
   ansible.builtin.command: setfacl --set-file=- "{{ item.path }}"
   args:
     stdin: |
@@ -81,7 +81,7 @@
     - shares
 
 # No SID needs to be inserted. When created with correct ACLs, it seems no SIDs are needed.
-- name: "{{ '[SHARES] - Set isHome NTACL-xattr share Permissions for ' ~ item.path }}"
+- name: "{{ 'SHARES | Set isHome NTACL-xattr share Permissions for ' ~ item.path }}"
   ansible.builtin.command: >
     samba-tool ntacl set
     "O:LAG:DAD:PAI(A;OICIIO;0x001f01ff;;;CO)(A;OICI;0x001f01ff;;;DA)(A;;0x001200a9;;;DU)"
@@ -92,7 +92,7 @@
     - shares
 
 # Added x-rights for Domain Computers to avoid flooding permission-denied messages to log.smbd.
-- name: "{{ '[SHARES] - Set isRoaming share Permissions for ' ~ item.path }}"
+- name: "{{ 'SHARES | Set isRoaming share Permissions for ' ~ item.path }}"
   ansible.builtin.command: setfacl --set-file=- "{{ item.path }}"
   args:
     stdin: |
@@ -123,8 +123,8 @@
   tags:
     - shares
 
-# No SID needs to be inserted. When create with right ACLs, seem no SIDs needed.
-- name: "{{ '[SHARES] - Set isRoaming NTACL-xattr share Permissions for ' ~ item.path }}"
+# When created with right ACLs, seem no SIDs needed. Only SIDs included are generic and the same throughout provisions.
+- name: "{{ 'SHARES | Set isRoaming NTACL-xattr share Permissions for ' ~ item.path }}"
   ansible.builtin.command: >
     samba-tool ntacl set
     "O:LAG:DAD:PAI(A;OICIIO;0x001f01ff;;;CO)(A;OICI;0x001f01ff;;;DA)(A;OICI;0x001f01ff;;;SY)(A;;0x001200ad;;;DU)"

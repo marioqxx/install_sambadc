@@ -4,17 +4,17 @@
 #
 # ATTENTION: THIS WILL DELETE YOUR CURRENT CONFIGURED DC IRREVOCABLY.
 
-- name: "[MAIN] - Gather facts of installed packages."
+- name: MAIN | Gather facts of installed packages.
   ansible.builtin.package_facts:
 
-- name: "[MAIN] - Sanity check variables given for minimum configuration."
+- name: MAIN | Sanity check variables given for minimum configuration.
   ansible.builtin.include_tasks: usage.yml
   tags:
     - dns_bind_dlz
     - settings
 
 # Install the packages needed for a samba DC and if configured from additional repository.
-- name: "[MAIN] - Install the required packages and make other required/useful system-settings."
+- name: MAIN | Install the required packages and make other required/useful system-settings.
   ansible.builtin.include_tasks: setup_env.yml
   tags:
     - cleanup
@@ -24,32 +24,32 @@
     - shares
     - settings
 
-- name: "[MAIN] - Sanity check variables given for extended configuration."
+- name: MAIN | Sanity check variables given for extended configuration.
   ansible.builtin.include_tasks: usage_post.yml
   tags:
     - dns_bind_dlz
 
 # Remove smbd, nmbd and winbind as well as systemd-resolved, systemd-timesyncd from starting and shut those
 # services down. Note that DNS afterwards does not work anymore.
-- name: "[MAIN] - Gather facts of services."
+- name: MAIN | Gather facts of services.
   ansible.builtin.service_facts:
 
-- name: "[MAIN] - Prepare systemd settings and stop services."
+- name: MAIN | Prepare systemd settings and stop services.
   ansible.builtin.include_tasks: systemd.yml
   tags:
     - cleanup
 
 # Requires stopped services, thus must be after systemd.yml tasks.
-- name: "[MAIN] - Cleanup any existing config, DB and log-files of an existing DC."
+- name: MAIN | Cleanup any existing config, DB and log-files of an existing DC.
   ansible.builtin.include_tasks: cleanup.yml
   tags:
     - cleanup
 
-- name: "[MAIN] - set IP-address for local name resolution - Pre-Provision."
+- name: MAIN | set IP-address for local name resolution - Pre-Provision.
   ansible.builtin.set_fact:
     sambadc_dns_address: "{{ sambadc_forwarder }}"
 
-- name: "[MAIN] - Re-enable (static) DNS-resolution by writing '/etc/resolv.conf'."
+- name: MAIN | Re-enable (static) DNS-resolution by writing '/etc/resolv.conf'.
   ansible.builtin.template:
     src: templates/resolv.conf.j2
     dest: /etc/resolv.conf
@@ -57,20 +57,20 @@
     group: root
     mode: u=rw,g=r,o=r
 
-- name: "[MAIN] - Check if the Domain-Controller is reachable and obtain FQDN for Domain join."
+- name: MAIN | Check if the Domain-Controller is reachable and obtain FQDN for Domain join.
   ansible.builtin.command: host -t SRV _ldap._tcp.{{ sambadc_realm }}
   register: df_cmd
   when: sambadc_type | lower == "join"
   changed_when: true
 
 # @TODO: Check is still needed.
-- name: "[MAIN] - Store Domain Controller FQDN to 'sambadc_fqdn' variable (join)."
+- name: MAIN | Store Domain Controller FQDN to 'sambadc_fqdn' variable (join).
   ansible.builtin.set_fact:
     sambadc_fqdn: "{{ (df_cmd.stdout | split(' '))[-1][:-1] }}"
   when: sambadc_type | lower == "join"
   changed_when: true
 
-- name: "[MAIN] - Provision the new Domain Controller and create new Domain."
+- name: MAIN | Provision the new Domain Controller and create new Domain.
   ansible.builtin.command: >
     samba-tool domain provision
       --server-role=dc
@@ -82,7 +82,7 @@
   when: sambadc_type | lower == "new"
   changed_when: true
 
-- name: "[MAIN] - Join the new Domain Controller to the existing Domain."
+- name: MAIN | Join the new Domain Controller to the existing Domain.
   ansible.builtin.command: >
     samba-tool domain join
       "{{ sambadc_realm | upper }}" DC
@@ -93,7 +93,7 @@
   when: sambadc_type | lower == "join"
   changed_when: true
 
-- name: "[MAIN] - Copy the 'krb5.conf' file to /etc/krb5.conf."
+- name: MAIN | Copy the 'krb5.conf' file to /etc/krb5.conf.
   ansible.builtin.copy:
     src: "{{ PRIVATE_DIR }}/krb5.conf"
     dest: /etc/krb5.conf
@@ -102,7 +102,7 @@
     group: root
     mode: u=rw,g=r,o=r
 
-- name: "[MAIN] - Write the smb.conf-file with the configured shares included."
+- name: MAIN | Write the smb.conf-file with the configured shares included.
   ansible.builtin.template:
     src: templates/smb.conf.j2
     dest: "{{ CONFIGFILE }}"
@@ -115,14 +115,14 @@
     - shares
 
 # TODO: Restart only if needed, otherwise just reload config (if needed) - dependent on provided tags
-- name: "[MAIN] - First start of the newly provisioned Domain Controller."
+- name: MAIN | First start of the newly provisioned Domain Controller.
   ansible.builtin.service:
     name: "samba-ad-dc"
     state: started
   when: sambadc_type | lower == "new"
 
 # Setup the DNS through NAMED/BIND9 if configured.
-- name: "[MAIN] - Setup the names/bind9 DNS server if configured."
+- name: MAIN | Setup the names/bind9 DNS server if configured.
   ansible.builtin.include_tasks: named.yml
   when: sambadc_dns in [ "BIND9_FLATIFLE", "BIND9_DLZ" ]
   tags:
@@ -134,7 +134,7 @@
 #         https://bugs.launchpad.net/ubuntu/+source/samba/+bug/1980246
 # Note: This bug persists in ubuntu server 20.04 and 22.04 and will be fixed only in
 #       ubuntu server 23.04, which ships with samba 4.17.
-- name: "[MAIN] - Add winbind user name-lookup to /etc/nsswitch.conf (1/2)."
+- name: MAIN | Add winbind user name-lookup to /etc/nsswitch.conf (1/2).
   ansible.builtin.lineinfile:
     path: /etc/nsswitch.conf
     regexp: ^(passwd:.*winbind.*)
@@ -145,7 +145,7 @@
   tags:
     - shares
 
-- name: "[MAIN] - Add winbind user name-lookup to /etc/nsswitch.conf (2/2)."
+- name: MAIN | Add winbind user name-lookup to /etc/nsswitch.conf (2/2).
   ansible.builtin.lineinfile:
     path: /etc/nsswitch.conf
     regexp: ^(passwd:.*)
@@ -155,7 +155,7 @@
   tags:
     - shares
 
-- name: "[MAIN] - Add winbind group name-lookup to /etc/nsswitch.conf (1/2)."
+- name: MAIN | Add winbind group name-lookup to /etc/nsswitch.conf (1/2).
   ansible.builtin.lineinfile:
     path: /etc/nsswitch.conf
     regexp: ^(group:.*winbind.*)
@@ -166,7 +166,7 @@
   tags:
     - shares
 
-- name: "[MAIN] - Add winbind group name-lookup to /etc/nsswitch.conf (2/2)."
+- name: MAIN | Add winbind group name-lookup to /etc/nsswitch.conf (2/2).
   ansible.builtin.lineinfile:
     path: /etc/nsswitch.conf
     regexp: ^(group:.*)
@@ -176,8 +176,8 @@
   tags:
     - shares
 
-# Requires, that winbind is up and running and nsswitch finds Adctive Directory groups and users.
-- name: "[MAIN] - Create the configured shares included in smb.conf."
+# Requires, that winbind is up and running and nsswitch finds Active Directory groups and users.
+- name: MAIN | Create the configured shares included in smb.conf.
   ansible.builtin.include_tasks: shares.yml
   when:
     - item.type is defined
@@ -190,7 +190,7 @@
 
 # Write /etc/hosts, so that the domain is correctly added to hostname-command, but don't stop executing
 # if not successful.
-- name: "[MAIN] - Add FQDN to /etc/hosts for hostname-lookup on remote host."
+- name: MAIN | Add FQDN to /etc/hosts for hostname-lookup on remote host.
   ansible.builtin.lineinfile:
     path: /etc/hosts
     search_string: '127.0.1.1'
@@ -199,19 +199,19 @@
 
 # Setup the Network-time Protocol daemon, which will be used by the clients for time-
 # synchronization with signed messages.
-- name: "[MAIN] - Setup the Network Time Protocol Daemon with signed time/date from the DC."
+- name: MAIN | Setup the Network Time Protocol Daemon with signed time/date from the DC.
   ansible.builtin.include_tasks: ntpd.yml
 
-- name: "[MAIN] - (re)start ntpd-Daemon."
+- name: MAIN | (re)start ntpd-Daemon.
   ansible.builtin.service:
     name: "{{ 'ntp' if ansible_facts.distribution | lower is match('debian') else 'ntpsec' }}"
     state: restarted
 
-- name: "[MAIN] - set IP-address for local name resolution - Post-Provision."
+- name: MAIN | set IP-address for local name resolution - Post-Provision.
   ansible.builtin.set_fact:
     sambadc_dns_address: "127.0.0.1"
 
-- name: "{{ '[MAIN] - DNS-resolution re-directed to ' ~ sambadc_dns_address ~ ', writing to /etc/resolv.conf.' }}"
+- name: "{{ 'MAIN | DNS-resolution re-directed to ' ~ sambadc_dns_address ~ ', writing to /etc/resolv.conf.' }}"
   ansible.builtin.template:
     src: templates/resolv.conf.j2
     dest: /etc/resolv.conf
@@ -222,7 +222,7 @@
 # On debian based system, and if dhclient is configured, then add omit some DHCP-parameters
 # received. See: https://wiki.debian.org/resolv.conf
 # Note: A DC or fileserver shall have a fixed IP-address assigned.
-- name: "[MAIN] - On Debian based systems ensure that resolv.conf is not overwritten by dhclient."
+- name: MAIN | On Debian based systems ensure that resolv.conf is not overwritten by dhclient.
   ansible.builtin.blockinfile:
     dest: "/etc/dhcp/dhclient.conf"
     state: present
@@ -235,55 +235,55 @@
 
 # For a fileserver-join, the script ends here. There are no SETTINGS or GPOs to set and
 # there are no checks.
-- name: "[MAIN] - The script for joining a Fileserver to the Domain ends here."
+- name: MAIN | The script for joining a Fileserver to the Domain ends here.
   ansible.builtin.meta: end_play
   when: sambadc_type | lower == "join"
   tags:
     - always
 
-- name: "[MAIN] - Precautionary check of sysvol permissions."
+- name: MAIN | Precautionary check of sysvol permissions.
   ansible.builtin.command: samba-tool ntacl sysvolcheck
   changed_when: true
 
-- name: "[MAIN] - Precautionary reset sysvol permissions."
+- name: MAIN | Precautionary reset sysvol permissions.
   ansible.builtin.command: samba-tool ntacl sysvolreset
   changed_when: true
 
 # The Domain Controller shall now be up and running and functional.
 # NEXT: Configure the Domain Controller.
-- name: "[MAIN] - Configure some settings of the Domain Controller."
+- name: MAIN | Configure some settings of the Domain Controller.
   ansible.builtin.include_tasks: settings.yml
   when: sambadc_type | lower == "new"
   tags:
     - settings
 
 # Check the functionality of the Domain Controller (member)
-- name: "[MAIN] - Check if the DC is operational and DNS works."
+- name: MAIN | Check if the DC is operational and DNS works.
   ansible.builtin.include_tasks: checks.yml
   tags:
     - check
 
 # Create users and groups in the new Domain Controller.
-- name: "[MAIN] - Create groups and group-memberships for the new Domain Controller."
+- name: MAIN | Create groups and group-memberships for the new Domain Controller.
   ansible.builtin.include_tasks: groups.yml
   when: sambadc_type | lower == "new"
   tags:
     - settings
 
-- name: "[MAIN] - Create users for and group memberships for the new Domain Controller."
+- name: MAIN | Create users for and group memberships for the new Domain Controller.
   ansible.builtin.include_tasks: users.yml
   when: sambadc_type | lower == "new"
   tags:
     - settings
 
 # Install Group-Policy Templates
-- name: "[MAIN] - Copy and install GPO-Templates."
+- name: MAIN | Copy and install GPO-Templates.
   ansible.builtin.include_tasks: gpo.yml
   when: sambadc_gpo_template is defined
   tags:
     - gpo
 
 # Reboot the host.
-- name: "[MAIN] - Reboot the host now."
+- name: MAIN | Reboot the host now.
   ansible.builtin.reboot:
   when: sambadc_reboot

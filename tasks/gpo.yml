@@ -4,7 +4,7 @@
 # Install the GPO-templates into samba-sysvol with the aid of samba-tool.
 # Source: https://wiki.samba.org/index.php/Group_Policy
 # First install the ADMX templates that come with samba.
-- name: "[GPO] - Install Samba ADMX-Templates that come with Samba first."
+- name: GPO | Install Samba ADMX-Templates that come with Samba first.
   ansible.builtin.command: >
     samba-tool gpo admxload -H "{{ sambadc_fqdn }}" -U Administrator
   args:
@@ -16,7 +16,7 @@
 # Copy the GPO-Template file from the control host to the remote host. Note that the
 # GPO-template file shall be a packed file and shall include the ADMX-files in the root
 # and the ADML-files in subdirectories, such as: "de-DE" or "en-US"
-- name: "[GPO] - Create Temporary Directories for download of GPO-Templates."
+- name: GPO | Create Temporary Directories for download of GPO-Templates.
   ansible.builtin.file:
     path: "/tmp/{{ item | basename }}"
     owner: root
@@ -29,7 +29,7 @@
   tags:
     - gpo
 
-- name: "[GPO] - Copy or Download GPO-Template Archive to Temporary Directory and unpack."
+- name: GPO | Copy or Download GPO-Template Archive to Temporary Directory and unpack.
   ansible.builtin.unarchive:
     src: "{{ item }}"
     dest: "/tmp/{{ item | basename }}"
@@ -42,7 +42,7 @@
   tags:
     - gpo
 
-- name: "[GPO] - Install configured GPO-Templates."
+- name: GPO | Install configured GPO-Templates.
   ansible.builtin.command: >
     samba-tool gpo admxload -H "{{ sambadc_fqdn }}" -U Administrator
       --admx-dir="/tmp/{{ item | basename }}"
@@ -56,7 +56,7 @@
     - gpo
 
 # Delete the temporary directories and included files.
-- name: "[GPO] - Delete temporary GPO-Template directories and included files."
+- name: GPO | Delete temporary GPO-Template directories and included files.
   ansible.builtin.file:
     path: "/tmp/{{ item | basename }}"
     state: absent
@@ -73,7 +73,7 @@
 # <gpo> can be obtained through samba-tool gpo listall
 # The such retrieved GPO is copied to /tmp/*. Pack the files into a *.ZIP
 # archive where GPTini.xml file shall be in the root and not in a subdirectory.
-- name: "[GPO] - Create Temporary Directories to dowload Group Policies to."
+- name: GPO | Create Temporary Directories to dowload Group Policies to.
   ansible.builtin.file:
     path: "/tmp/{{ item | basename }}"
     owner: root
@@ -86,7 +86,7 @@
   tags:
     - gpo
 
-- name: "[GPO] - Copy or Download Archive containing the Group Policy to Temporary Directory."
+- name: GPO | Copy or Download Archive containing the Group Policy to Temporary Directory.
   ansible.builtin.unarchive:
     src: "{{ item }}"
     dest: "/tmp/{{ item | basename }}"
@@ -105,7 +105,7 @@
 # is here used as a workaround.
 # Furthermore, samba-tool does not work without specified --tmpdir. To work around,
 # a temporary directory is created.
-- name: "[GPO] - Create temporary GPO directory for samba-tool as tmp-directory."
+- name: GPO | Create temporary GPO directory for samba-tool as tmp-directory.
   ansible.builtin.file:
     path: "/tmp/policies"
     owner: root
@@ -116,7 +116,7 @@
   tags:
     - gpo
 
-- name: "[GPO] - Install configured Group Policies."
+- name: GPO | Install configured Group Policies.
   ansible.builtin.command: >
     samba-tool gpo restore "{{ item | basename | split('.') | first }}" "/tmp/{{ item | basename }}"
       -H "{{ sambadc_fqdn }}" -U Administrator
@@ -131,7 +131,7 @@
   tags:
     - gpo
 
-- name: "[GPO] - Delete temporary GPO directory for samba-tool as tmp-directory."
+- name: GPO | Delete temporary GPO directory for samba-tool as tmp-directory.
   ansible.builtin.file:
     path: "/tmp/policies"
     state: absent
@@ -139,7 +139,7 @@
   tags:
     - gpo
 
-- name: "[GPO] - Delete temporary GPO directories and included files."
+- name: GPO | Delete temporary GPO directories and included files.
   ansible.builtin.file:
     path: "/tmp/{{ item | basename }}"
     state: absent
@@ -155,7 +155,7 @@
 # displayname-mapping for each GPO.
 # If samba-tool is called with command-line option "-H", it returns an error.
 #      -H "{{ sambadc_fqdn }}" -U Administrator
-- name: "[GPO] - Obtain GPO displayname to UUID-mapping (1/2)."
+- name: GPO | Obtain GPO displayname to UUID-mapping (1/2).
   ansible.builtin.command: >
     samba-tool gpo listall -U Administrator
   args:
@@ -166,7 +166,7 @@
   tags:
     - gpo
 
-- name: "[GPO] - Obtain GPO displayname to UUID-mapping (2/2)."
+- name: GPO | Obtain GPO displayname to UUID-mapping (2/2).
   ansible.builtin.set_fact:
     keynames: "{{ df_cmd.stdout_lines | select('search', 'display name') | reverse | map('regex_replace', '.*:', '') | map('trim') }}"
     values: "{{ df_cmd.stdout_lines | select('search', 'GPO') | reverse | map('regex_replace', '.*:', '') | map('trim') }}"
@@ -176,20 +176,20 @@
     - gpo
 
 # For debugging purposes only.
-# - name: "[GPO] - Activate configured Group Policies."
+# - name: "GPO | Activate configured Group Policies."
 #   ansible.builtin.debug:
 #     msg: "{{ dict(keynames | zip(values)) }}"
 #   when: sambadc_gpo_activate is defined
 #   tags:
 #     - gpo
 #
-# - name: "[GPO] - End"
+# - name: "GPO | End"
 #   ansible.builtin.meta: end_play
 #   tags:
 #     - gpo
 
 # samba-tool gpo fails when called with option -H. Adding a link in the LDAP-tree at sambadc_ldap activates the GPO.
-- name: "[GPO] - Activate configured Group Policies."
+- name: GPO | Activate configured Group Policies.
   ansible.builtin.command: >
     samba-tool gpo setlink "{{ sambadc_ldap }}" "{{ gpo_mapping[item] }}" -U Administrator
   args:

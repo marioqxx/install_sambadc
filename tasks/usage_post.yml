@@ -1,10 +1,10 @@
 ---
 # Do some checking of the configuration provided to this ansible script before running it.
 # However these checks require already the installed packages. Thus call it after setup_env.yml.
-- name: "[USAGE-POST] - Check smb.conf-file with the configured shares included."
+- name: USAGE-POST | Check smb.conf-file with the configured shares included.
   when: sambadc_shares is defined
   block:
-    - name: "[USAGE-POST] - Temporarily create smb.conf in /tmp folder with shares included."
+    - name: "USAGE-POST | Temporarily create smb.conf in /tmp folder with shares included."
       ansible.builtin.template:
         src: templates/smb.conf.j2
         dest: /tmp/smb.conf
@@ -14,12 +14,12 @@
         mode: u=rw,g=r,o=r
       changed_when: false
 
-    - name: "[USAGE-POST] - Check temporarily created smb.conf with testparm."
+    - name: USAGE-POST | Check temporarily created smb.conf with testparm.
       ansible.builtin.command: samba-tool testparm --suppress-prompt -s /tmp/smb.conf
       register: df_cmd
       changed_when: false
 
-    - name: "[USAGE-POST] - Check output of testparm for an error entry."
+    - name: USAGE-POST | Check output of testparm for an error entry.
       ansible.builtin.assert:
         that:
           - df_cmd.stderr | upper is not match("UNKNOWN")
@@ -27,27 +27,27 @@
         msg: "{{ df_cmd.stderr_lines | select('match', 'ERROR', 'UNKNOWN') }}"
 
   always:
-    - name: "[USAGE-POST] - Delete temporarily created smb.conf in /tmp."
+    - name: USAGE-POST | Delete temporarily created smb.conf in /tmp.
       ansible.builtin.file:
         path: /tmp/smb.conf
         state: absent
       changed_when: false
 
-- name: "[USAGE-POST] - Check if subnet-prefix is either 8, 16, or 24."
+- name: USAGE-POST | Check if subnet-prefix is either 8, 16, or 24.
   ansible.builtin.meta: end_play
   when: iface.ipv4.prefix not in [ '8', '16', '24' ]
   tags:
     - dns_bind_dlz
 
 # Safety-check, if DNS-port is not occupied by still another running daemon.
-- name: "[USAGE-POST] - Check port 53 availability for DNS activation during Domain Controller provisioning (1/2)."
+- name: USAGE-POST | Check port 53 availability for DNS activation during Domain Controller provisioning (1/2).
   ansible.builtin.command: ss -tulpen '( dport = :53 or sport = :53 )'
   register: df_cmd
   changed_when: false
   tags:
     - dns_bind_dlz
 
-- name: "[USAGE-POST] - Check port 53 availability for DNS activation during Domain Controller provisioning (2/2)."
+- name: USAGE-POST | Check port 53 availability for DNS activation during Domain Controller provisioning (2/2).
   ansible.builtin.meta: end_play
 #  when: (df_cmd.stdout_lines | length) > 1
   when: df_cmd.stdout is match(':53')

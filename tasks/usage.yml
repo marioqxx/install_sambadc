@@ -1,6 +1,6 @@
 ---
 # Do some checking of the configuration provided to this ansible script before running it.
-- name: "[USAGE] - Check that minimum required variables are defined and their values are correct."
+- name: USAGE | Check that minimum required variables are defined and their values are correct.
   ansible.builtin.assert:
     that:
       - sambadc_dns is in [ "SAMBA_INTERNAL", "BIND9_DLZ" ]
@@ -13,20 +13,20 @@
   tags:
     - dns_bind_dlz
 
-- name: "[USAGE] - Check if fileshares are defined when a Fileserver shall be setup (type join)."
+- name: USAGE | Check if fileshares are defined when a Fileserver shall be setup (type join).
   ansible.builtin.assert:
     that:
       - sambadc_shares is defined
     fail_msg: "When 'sambadc_type' is set to 'join', than at least one fileshare must be configured."
   when: sambadc_type | lower == "join"
 
-- name: "[USAGE] - Check interfaces and presence of bind only interfaces config parameter. (1/3)."
+- name: USAGE | Check interfaces and presence of bind only interfaces config parameter. (1/3).
   ansible.builtin.meta: end_play
   when: ( ansible_facts.interfaces | length < 3 ) and ( "lo" not in ansible_facts.interfaces | lower )
   tags:
     - dns_bind_dlz
 
-- name: "[USAGE] - Check interfaces and presence of bind only interfaces config parameter. (2/3)."
+- name: USAGE | Check interfaces and presence of bind only interfaces config parameter. (2/3).
   ansible.builtin.meta: end_play
   when:
     - ansible_facts.interfaces | length >= 3
@@ -34,7 +34,7 @@
   tags:
     - dns_bind_dlz
 
-- name: "[USAGE] - Check interfaces and presence of bind only interfaces config parameter. (3/3)."
+- name: USAGE | Check interfaces and presence of bind only interfaces config parameter. (3/3).
   ansible.builtin.meta: end_play
   when:
     - ansible_facts.interfaces | length >= 3
@@ -42,13 +42,13 @@
   tags:
     - dns_bind_dlz
 
-- name: "[USAGE] - Check if inventory-hostname and host-hostname match."
+- name: USAGE | Check if inventory-hostname and host-hostname match.
   ansible.builtin.meta: end_play
   when: inventory_hostname | lower != ansible_hostname | lower
   tags:
     - dns_bind_dlz
 
-- name: "[USAGE] - Check if configured directories to copy keytabs to exist."
+- name: USAGE | Check if configured directories to copy keytabs to exist.
   ansible.builtin.stat:
     path: "{{ item.destination[0] | dirname }}"
   register: df_cmd
@@ -62,7 +62,7 @@
   tags:
     - settings
 
-- name: "[USAGE] - Check if TLS-certificates are correctly configured."
+- name: USAGE | Check if TLS-certificates are correctly configured.
   ansible.builtin.assert:
     that:
       - sambadc_tls_ca is defined
@@ -71,7 +71,7 @@
     fail_msg: "TLS-certificates are defined. This requires all three parameters sambadc_tls_ca, sambadc_tls_cert and sambadc_tls_key to be set."
   when: (sambadc_tls_ca is defined) or (sambadc_tls_cert is defined) or (samba_tls_key is defined)
 
-- name: "[USAGE] - Check if CA-certificates is configured for system-wide install."
+- name: USAGE | Check if CA-certificates is configured for system-wide install.
   ansible.builtin.assert:
     that:
       - sambadc_tls_ca is defined
@@ -79,10 +79,10 @@
   when: sambadc_tls_ca_install_system
 
 # Requires openssl install on control host.
-- name: "[USAGE] - Check provided certificate chain."
+- name: USAGE | Check provided certificate chain.
   when: sambadc_tls_cert is defined
   block:
-    - name: "[USAGE] - Check Certififcate chain, no intermed CA is defined."
+    - name: USAGE | Check Certififcate chain, no intermed CA is defined.
       ansible.builtin.command: openssl verify -purpose sslserver -CAfile "{{ ca_file }}" "{{ crt_file }}"
       delegate_to: localhost
       become: false
@@ -92,10 +92,10 @@
         ca_file: "{{ playbook_dir }}/{{ sambadc_tls_ca }}"
         crt_file: "{{ playbook_dir }}/{{ sambadc_tls_cert }}"
 
-    - name: "[USAGE] - Check Certififcate chain, with intermed CA is defined."
+    - name: USAGE | Check Certififcate chain, with intermed CA is defined.
       when: sambadc_tls_intermed is defined
       block:
-        - name: "[USAGE] - Check Certififcate chain part: Root CA <-> Intermed CA."
+        - name: USAGE | Check Certififcate chain part Root CA <-> Intermed CA.
           ansible.builtin.command: openssl verify -partial_chain -CAfile "{{ ca_file }}" "{{ crt_file }}"
           delegate_to: localhost
           become: false
@@ -104,7 +104,7 @@
             ca_file: "{{ playbook_dir }}/{{ sambadc_tls_ca }}"
             crt_file: "{{ playbook_dir }}/{{ sambadc_tls_intermed }}"
 
-        - name: "[USAGE] - Check Certififcate chain part: Intermed CA <-> Certificate."
+        - name: USAGE | Check Certififcate chain part Intermed CA <-> Certificate.
           ansible.builtin.command: openssl verify -partial_chain -CAfile "{{ ca_file }}" "{{ crt_file }}"
           delegate_to: localhost
           become: false
@@ -113,7 +113,7 @@
             ca_file: "{{ playbook_dir }}/{{ sambadc_tls_intermed }}"
             crt_file: "{{ playbook_dir }}/{{ sambadc_tls_cert }}"
 
-    - name: "[USAGE] - Check Certififcate Common Name matches host-FQDN (1/2)."
+    - name: USAGE | Check Certififcate Common Name matches host-FQDN (1/2).
       ansible.builtin.command: openssl x509 -in "{{ crt_file }}" -noout -subject
       delegate_to: localhost
       register: df_cmd
@@ -122,7 +122,7 @@
       vars:
         crt_file: "{{ playbook_dir }}/{{ sambadc_tls_cert }}"
 
-    - name: "[USAGE] - Check Certififcate Common Name matches host-FQDN (2/2)."
+    - name: USAGE | Check Certififcate Common Name matches host-FQDN (2/2).
       ansible.builtin.assert:
         that:
           - crt_common_name == sambadc_fqdn

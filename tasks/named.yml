@@ -3,7 +3,7 @@
 # The adresses are used to put together an PTR-record.
 # Currently IPv6 implementation needs to be completed.
 # IPv4 may also need some revision for e.g. 192.168.0.0/16 subnets the PTR may lack a leading zero.
-- name: "[NAMED] - Build the IPv4 & IPv6 PTR-record."
+- name: NAMED | Build the IPv4 & IPv6 PTR-record.
   ansible.builtin.set_fact:
     ipv4net: "{{ iface.ipv4.network | replace('.0', '') ~ '.' }}"
     ipv4ptr: "{{ iface.ipv4.network | ansible.utils.ipaddr('revdns') | replace('0.', '') }}"
@@ -11,13 +11,13 @@
   tags:
     - dns_bind_dlz
 
-- name: "[NAMED] - Extract Host Subnet-Address."
+- name: NAMED | Extract Host Subnet-Address.
   ansible.builtin.set_fact:
     ipv4host: "{{ iface.ipv4.address | replace(ipv4net, '') }}"
   tags:
     - dns_bind_dlz
 
-# - name: "[NAMED] - Switch DNS-backend to BIND9_DLZ."
+# - name: "NAMED | Switch DNS-backend to BIND9_DLZ."
 #   ansible.builtin.command: samba_upgraddns --dns-backend=BIND9_DLZ
 #   ansible.builtin.command: samba_upgraddns --dns-backend=SAMBA_INTERNAL
 #   ansible.builtin.lineinfile:
@@ -26,7 +26,7 @@
 
 # Source: https://bugzilla.samba.org/show_bug.cgi?id=14535
 # Fixes an issue that existed in pre 4.15 versions.
-- name: "[NAMED] - Copy dns.keytab (bugfix for 14535)."
+- name: NAMED | Copy dns.keytab (bugfix for 14535).
   ansible.builtin.copy:
     src: "{{ PRIVATE_DIR }}/dns.keytab"
     dest: "{{ BINDDNS_DIR }}"
@@ -39,7 +39,7 @@
     - dns_bind_dlz
 
 # Do all the changes to /etc/bind/named.conf.options
-- name: "[NAMED] - Modify named.conf.options."
+- name: NAMED | Modify named.conf.options.
   ansible.builtin.blockinfile:
     path: /etc/bind/named.conf.options
     block: |
@@ -54,7 +54,7 @@
   tags:
     - dns_bind_dlz
 
-- name: "[NAMED] - Change DNSSEC to \"no\"."
+- name: NAMED | Change DNSSEC to 'no'.
   ansible.builtin.replace:
     path: /etc/bind/named.conf.options
     regexp: 'dnssec-validation auto;'
@@ -63,7 +63,7 @@
     - dns_bind_dlz
 
 # Do all the changes to /etc/bind/named.conf.local
-- name: "[NAMED] - Modify named.conf.local."
+- name: NAMED | Modify named.conf.local.
   ansible.builtin.blockinfile:
     path: /etc/bind/named.conf.local
     block: |
@@ -72,7 +72,7 @@
     - dns_bind_dlz
 
 # Finally uncomment in /var/lib/samba/bind-dns/named.conf the lib corresponding to the named version.
-- name: "[NAMED] - Uncomment in BINDDNS_DIR the respective version in named.conf-file."
+- name: NAMED | Uncomment in BINDDNS_DIR the respective version in named.conf-file.
   ansible.builtin.replace:
     dest: "{{ BINDDNS_DIR }}/named.conf"
     regexp: "{{ '^(\\s*)#(.*' ~ sambadc_bindversion[0] ~ '_' ~ sambadc_bindversion[1] ~ '.*)$' }}"
@@ -81,7 +81,7 @@
     - dns_bind_dlz
 
 # Start checking filesystem-permissions for bind9
-- name: "[NAMED] - Set file permissions for the bind-files that Samba created during provisioning (bugfix 14535)."
+- name: NAMED | Set file permissions for the bind-files that Samba created during provisioning (bugfix 14535).
   ansible.builtin.file:
     path: "{{ item.path }}"
     state: "{{ item.state }}"
@@ -99,7 +99,7 @@
   loop_control:
     label: "Setting permissions for file/directory {{ item.path }} to {{ item.mode }}"
 
-- name: "[NAMED] - Listing files in BINDDNS_DIR/dns/sam.ldb.d/"
+- name: NAMED | Listing files in BINDDNS_DIR/dns/sam.ldb.d/
   ansible.builtin.find:
     paths: "{{ BINDDNS_DIR }}/dns/sam.ldb.d/"
     file_type: file
@@ -108,7 +108,7 @@
   tags:
     - dns_bind_dlz
 
-- name: "[NAMED] - Checking permission for BINDDNS_DIR/dns/sam.ldb.d/* ."
+- name: NAMED | Checking permission for BINDDNS_DIR/dns/sam.ldb.d/* .
   ansible.builtin.file:
     path: "{{ item.path }}"
     state: file
@@ -121,14 +121,14 @@
   loop_control:
     label: "Checking permissions for file/directory {{ item.path }}"
 
-- name: "[NAMED] - Checking configuration file."
+- name: NAMED | Checking configuration file.
   ansible.builtin.command: named-checkconf
   changed_when: false
   tags:
     - dns_bind_dlz
 
 # Restart bind9 after setting up the domain
-- name: "[NAMED] - Restart bind9 Daemon."
+- name: NAMED | Restart bind9 Daemon.
   ansible.builtin.service:
     name: named
     state: restarted
@@ -136,7 +136,7 @@
     - dns_bind_dlz
 
 # Create Reverse zone and associated entry for Reverse resolution on host.
-- name: "[NAMED] - Add a Reversezone."
+- name: NAMED | Add a Reversezone.
   ansible.builtin.command: >
     samba-tool dns zonecreate localhost {{ ipv4ptr }} -U Administrator
   args:
@@ -147,7 +147,7 @@
   tags:
     - dns_bind_dlz
 
-- name: "[NAMED] - Add the host to the Reversezone."
+- name: NAMED | Add the host to the Reversezone.
   ansible.builtin.command: >
     samba-tool dns add localhost {{ ipv4ptr }} {{ ipv4host }} PTR {{ sambadc_fqdn }} -U Administrator
   args:

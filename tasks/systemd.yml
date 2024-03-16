@@ -4,7 +4,7 @@
 #
 # Source: https://dev.to/koh_sh/how-to-do-if-a-package-is-installed-do-something-with-ansible-3fhi
 #         https://stackoverflow.com/questions/73483810/ansible-facts-packages-skipping-my-package-check
-- name: "[SYSTEMD] - Disable services: smbd, nmbd, winbind, systemd-resolved and systemd-timesyncd prior to DC samba installation."
+- name: SYSTEMD | Disable services smbd, nmbd, winbind, systemd-resolved and systemd-timesyncd prior to DC samba installation.
   ansible.builtin.systemd:
     name: "{{ item }}"
     state: stopped
@@ -20,7 +20,7 @@
   tags:
     - cleanup
 
-- name: "[SYSTEMD] - Enable but stop samba-ad-dc service for samba DC installation."
+- name: SYSTEMD | Enable but stop samba-ad-dc service for samba DC installation.
   ansible.builtin.systemd:
     name: samba-ad-dc
     state: stopped
@@ -29,7 +29,7 @@
   tags:
     - cleanup
 
-- name: "[SYSTEMD] - Disable named/bind9 if installed, because SAMBA-INTERNAL is configured."
+- name: SYSTEMD | Disable named/bind9 if installed, because SAMBA-INTERNAL is configured.
   ansible.builtin.systemd:
     name: named
     state: stopped
@@ -39,7 +39,7 @@
     - sambadc_dns in [ "SAMBA_INTERNAL" ]
     - ansible_facts.services[ "named" ] is defined
 
-- name: "[SYSTEMD] - Enable named/bind9, because BIND9_{FLATFILE, DLZ} is configured."
+- name: SYSTEMD | Enable named/bind9, because BIND9_{FLATFILE, DLZ} is configured.
   ansible.builtin.systemd:
     name: named
     state: stopped
